@@ -1,0 +1,34 @@
+{
+  "file_key": "1YGgTyZ9Y9qQEGQALikC2p",
+  "master_section": "9:4903",
+  "pending": [
+    { "id": "3:28",  "context": "play.cartesia.ai — home (1440w default)", "is_section": false },
+    { "id": "9:2586","context": "play.cartesia.ai/voices/create/localize", "is_section": true },
+    { "id": "9:2810","context": "play.cartesia.ai/pronunciation", "is_section": true },
+    { "id": "9:2864","context": "play.cartesia.ai/pronunciation — full frame", "is_section": false },
+    { "id": "9:3121","context": "play.cartesia.ai/keys", "is_section": true },
+    { "id": "9:3153","context": "play.cartesia.ai/keys — full frame", "is_section": false },
+    { "id": "9:3453","context": "play.cartesia.ai/subscription", "is_section": true },
+    { "id": "9:3478","context": "play.cartesia.ai/subscription — full frame", "is_section": false },
+    { "id": "9:3815","context": "play.cartesia.ai/agents/new/template", "is_section": true },
+    { "id": "9:4145","context": "play.cartesia.ai/agents/new/template — variant", "is_section": true },
+    { "id": "9:4485","context": "play.cartesia.ai/agents/{id}?tab=configuration", "is_section": true },
+    { "id": "9:4902","context": "play.cartesia.ai/agents/{id}?tab=configuration — latest", "is_section": true }
+  ],
+  "already_done": [
+    { "id": "4:496",  "file": "4-496_home.png" },
+    { "id": "4:991",  "file": "4-991_home2.png" },
+    { "id": "9:2",    "file": "9-2_screen3.png" },
+    { "id": "9:217",  "file": "9-217_screen4.png" },
+    { "id": "9:1746", "file": "9-1746_screen5.png" },
+    { "id": "9:2053", "file": "9-2053_screen6.png" },
+    { "id": "9:2282", "file": "9-2282_localize.png" },
+    { "id": "9:2603", "file": "9-2603_pronunciation.png" },
+    { "id": "9:2865", "file": "9-2865_keys.png" },
+    { "id": "9:3154", "file": "9-3154_subscription.png" },
+    { "id": "9:3522", "file": "agent_new_template_1.png" },
+    { "id": "9:3816", "file": "agent_new_template_2.png" },
+    { "id": "9:4146", "file": "agent_config_1.png" },
+    { "id": "9:4486", "file": "agent_config_2.png" }
+  ]
+}

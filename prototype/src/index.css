@@ -1,0 +1,123 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ── Font faces ─────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'ABC Diatype';
+  src: url('./assets/fonts/ABCDiatype-Regular-Trial.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'ABC Diatype';
+  src: url('./assets/fonts/ABCDiatype-Medium-Trial.woff2') format('woff2');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'ABC Diatype';
+  src: url('./assets/fonts/ABCDiatype-Bold-Trial.woff2') format('woff2');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Doulos SIL';
+  src: url('./assets/fonts/DoulosSIL-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Tiempos Text';
+  src: url('./assets/fonts/test-tiempos-text-regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Tiempos Text';
+  src: url('./assets/fonts/test-tiempos-text-medium.woff2') format('woff2');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Tiempos Text';
+  src: url('./assets/fonts/test-tiempos-text-semibold.woff2') format('woff2');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+
+/* ── Design tokens ───────────────────────────────────────── */
+
+@theme {
+  /* ── Primitive: Brand ── */
+  --color-brand:       #004d22;
+  --color-brand-light: #309d4b;
+  --color-brand-tint:  #dbe6d0;
+
+  /* ── Primitive: Neutral (warm) ── */
+  --color-neutral-900: #39342f;
+  --color-neutral-800: #444444;
+  --color-neutral-700: #525150;
+  --color-neutral-600: #626160;
+  --color-neutral-500: #737373;
+  --color-neutral-400: #dfdbd6;
+  --color-neutral-300: #efeee8;
+  --color-neutral-200: #f4f4f4;
+  --color-neutral-100: #f9f9f8;
+  --color-neutral-50:  #fdfdfc;
+  --color-white:       #ffffff;
+
+  /* ── Primitive: Status ── */
+  --color-danger:   #fa2b36;
+  --color-danger-2: #a62842;
+
+  /* ── Semantic: Text ── */
+  --color-text-primary:   var(--color-neutral-900); /* body, headings */
+  --color-text-secondary: var(--color-neutral-500); /* descriptions, hints */
+  --color-text-muted:     var(--color-neutral-600); /* tertiary labels */
+  --color-text-disabled:  var(--color-neutral-400);
+  --color-text-inverse:   var(--color-white);
+  --color-text-brand:     var(--color-brand);
+  --color-text-danger:    var(--color-danger);
+
+  /* ── Semantic: Background ── */
+  --color-bg-page:     var(--color-neutral-100); /* main canvas */
+  --color-bg-sidebar:  var(--color-neutral-300); /* left nav */
+  --color-bg-surface:  var(--color-white);       /* cards, modals */
+  --color-bg-elevated: var(--color-neutral-50);  /* raised surfaces */
+  --color-bg-subtle:   var(--color-neutral-200); /* hover states, inner sidebar */
+  --color-bg-brand:    var(--color-brand);
+  --color-bg-brand-tint: var(--color-brand-tint);
+
+  /* ── Semantic: Border ── */
+  --color-border-default: var(--color-neutral-400);
+  --color-border-subtle:  var(--color-neutral-300);
+  --color-border-strong:  var(--color-neutral-700);
+
+  /* ── Semantic: Interactive ── */
+  --color-interactive-active-bg: #e8e6df; /* nav active state */
+
+  /* ── Border radius ── */
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   10px;
+  --radius-xl:   14px;
+  --radius-2xl:  16px;
+  --radius-full: 9999px;
+
+  /* ── Typography ── */
+  --font-sans:    'ABC Diatype', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif:   'Tiempos Text', Georgia, serif;
+  --font-display: 'PP Kyoto', 'Tiempos Text', serif;
+  --font-mono:    'IBM Plex Mono', 'SF Mono', monospace;
+  --font-ipa:     'Doulos SIL', serif;
+
+  /* ── Shadows ── */
+  --shadow-sm:   0 1px 2px 0 rgba(0, 0, 0, 0.15);
+  --shadow-md:   0 8px 10px -6px rgba(0, 0, 0, 0.10), 0 20px 25px -5px rgba(0, 0, 0, 0.10);
+  --shadow-ring: 0 0 0 1px rgba(57, 52, 47, 0.10);
+}
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background-color: var(--color-bg-page);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+}

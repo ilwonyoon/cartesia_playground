@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.venv
+
+# Secrets
+.env
+
+# Generated audio
+output/
+*.wav
+
+# Trial fonts — do not commit (license restricted)
+prototype/src/assets/fonts/*.woff2
+prototype/src/assets/fonts/*.otf
+prototype/src/assets/fonts/*.ttf
+
+# Node / frontend
+node_modules/
+prototype/dist/
+prototype/.vite/
+markdown-preview/.vitepress/dist/
+markdown-preview/.vitepress/cache/
+
+# Figma extracted raw JSON (large, regenerable)
+/tmp/cartesia_figma_full.json
+
+# Claude session state
+.claude/memory/session-*.json

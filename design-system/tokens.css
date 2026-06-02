@@ -1,0 +1,123 @@
+/* Cartesia Design System — CSS Custom Properties */
+/* Extracted from Figma 1YGgTyZ9Y9qQEGQALikC2p — 2026-06-01 */
+
+:root {
+  /* Brand */
+  --color-brand-green: #004d22;
+  --color-brand-green-light: #309d4b;
+  --color-brand-green-tint: #dbe6d0;
+
+  /* Neutrals (warm-tinted gray scale) */
+  --color-neutral-900: #39342f;
+  --color-neutral-800: #444444;
+  --color-neutral-700: #525150;
+  --color-neutral-600: #626160;
+  --color-neutral-500: #737373;
+  --color-neutral-400: #dfdbd6;
+  --color-neutral-300: #efeee8;
+  --color-neutral-200: #f4f4f4;
+  --color-neutral-100: #f9f9f8;
+  --color-neutral-50: #fdfdfc;
+  --color-white: #ffffff;
+
+  /* Semantic text */
+  --color-text-primary: #39342f;
+  --color-text-secondary: #737373;
+  --color-text-muted: #525150;
+  --color-text-tertiary: #626160;
+
+  /* Semantic surfaces */
+  --color-bg-primary: #f9f9f8;
+  --color-bg-secondary: #efeee8;
+  --color-bg-sidebar: #f4f4f4;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #fdfdfc;
+
+  /* Borders */
+  --color-border-subtle: #dfdbd6;
+  --color-border-medium: rgba(57, 52, 47, 0.1);
+
+  /* Semantic states */
+  --color-accent: #004d22;
+  --color-accent-hover: #309d4b;
+  --color-danger: #fa2b36;
+  --color-danger-secondary: #a62842;
+
+  /* Typography */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base-sm: 13px;
+  --text-base: 14px;
+  --text-base-lg: 15px;
+  --text-md: 17px;
+  --text-lg: 18px;
+  --text-xl: 19px;
+  --text-2xl: 23px;
+  --text-3xl: 24px;
+
+  --leading-xs: 16px;
+  --leading-sm: 19px;
+  --leading-base: 20px;
+  --leading-md: 21px;
+  --leading-body: 24px;
+  --leading-lg: 28px;
+  --leading-xl: 32px;
+
+  /* Spacing */
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-36: 36px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --space-96: 96px;
+  --space-128: 128px;
+  --space-192: 192px;
+
+  /* Border radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.15);
+  --shadow-md:
+    0 8px 10px -6px rgba(0, 0, 0, 0.10),
+    0 20px 25px -5px rgba(0, 0, 0, 0.10);
+  --shadow-ring: 0 0 0 1px rgba(57, 52, 47, 0.10);
+
+  /* Layout */
+  --layout-max-width: 1440px;
+  --layout-sidebar-width: 220px;
+  --layout-container-padding: 48px;
+}
+
+/* Text style utilities */
+.text-heading-lg { font-size: var(--text-3xl); font-weight: var(--font-weight-medium); line-height: var(--leading-xl); }
+.text-heading-md { font-size: var(--text-xl); font-weight: var(--font-weight-semibold); line-height: var(--leading-lg); }
+.text-heading-sm { font-size: var(--text-md); font-weight: var(--font-weight-regular); line-height: var(--leading-lg); }
+.text-label-md  { font-size: var(--text-base); font-weight: var(--font-weight-semibold); line-height: var(--leading-md); }
+.text-label-sm  { font-size: var(--text-base-sm); font-weight: var(--font-weight-medium); line-height: var(--leading-base); }
+.text-label-xs  { font-size: var(--text-sm); font-weight: var(--font-weight-medium); line-height: var(--leading-sm); }
+.text-action    { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: var(--leading-base); }
+.text-body-md   { font-size: var(--text-base-lg); font-weight: var(--font-weight-regular); line-height: var(--leading-body); }
+.text-body-sm   { font-size: var(--text-base-sm); font-weight: var(--font-weight-regular); line-height: var(--leading-body); }
+.text-body-xs   { font-size: var(--text-xs); font-weight: var(--font-weight-regular); line-height: var(--leading-xs); }
