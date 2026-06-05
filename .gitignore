@@ -25,6 +25,8 @@ prototype/dist/
 prototype/.vite/
 markdown-preview/.vitepress/dist/
 markdown-preview/.vitepress/cache/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 
 # Figma extracted raw JSON (large, regenerable)
 /tmp/cartesia_figma_full.json

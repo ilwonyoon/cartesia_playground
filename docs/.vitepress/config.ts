@@ -7,6 +7,10 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
 
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+  ],
+
   vite: {
     server: {
       host: '0.0.0.0',

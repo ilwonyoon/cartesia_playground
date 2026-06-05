@@ -1,0 +1,14 @@
+{
+  "name": "cartesia-takehome-docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev --host",
+    "build": "vitepress build",
+    "preview": "vitepress preview --host"
+  },
+  "devDependencies": {
+    "vitepress": "^1.5.0"
+  }
+}
