@@ -54,6 +54,7 @@ const ORG_MENU = [
     group: 'Design',
     items: [
       { label: 'Design system', navigate: '__design_system' },
+      { label: 'Agent detail (demo)', navigate: '__agent_detail' },
       { label: 'Take-home brief', url: 'http://localhost:5181/notes/cartesia-takehome' },
     ],
   },
