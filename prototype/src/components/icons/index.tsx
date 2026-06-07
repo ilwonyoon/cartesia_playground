@@ -2,6 +2,14 @@ import { type SVGProps } from 'react'
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number }
 
+export function IconHome({ size = 16, ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path fillRule="evenodd" clipRule="evenodd" d="M8 1.5L1.5 6.5V14.5H6V10H10V14.5H14.5V6.5L8 1.5ZM13.5 7.02V13.5H11V9H5V13.5H2.5V7.02L8 2.82L13.5 7.02Z" fill="currentColor"/>
+    </svg>
+  )
+}
+
 
 export function IconTextToSpeech({ size = 16, ...props }: IconProps) {
   return <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}><path fillRule="evenodd" clipRule="evenodd" d="M1.88892 1.88892H14.1111V12.4445H7.6578L5.09781 14.0278L4.25003 14.5522V12.4445H1.88892V1.88892ZM7.44447 4.11114V10.2222H8.55558V4.11114H7.44447ZM5.22225 5.22225V9.11114H6.33336V5.22225H5.22225ZM9.66669 9.11114V5.22225H10.7778V9.11114H9.66669Z" fill="currentColor"/></svg>

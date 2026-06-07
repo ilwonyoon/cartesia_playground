@@ -89,6 +89,7 @@
 
   /* ── Semantic: Interactive ── */
   --color-interactive-active-bg: #e8e6df; /* nav active state */
+  --color-interactive-hover-bg:  #e3e2da; /* nav hover state */
 
   /* ── Border radius ── */
   --radius-sm:   6px;

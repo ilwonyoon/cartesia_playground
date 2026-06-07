@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { AppLayout } from './components/AppLayout'
+import { WelcomePage } from './pages/WelcomePage'
 import { VoiceAgentsPage } from './pages/VoiceAgentsPage'
 import { VoiceLibraryPage } from './pages/VoiceLibraryPage'
 import { DesignSystemPage } from './pages/DesignSystemPage'
@@ -48,10 +49,12 @@ function AppShell() {
   const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
 
-  const activeLabel = PATH_TO_LABEL[location.pathname] ??
-    (location.pathname.startsWith('/agents/') ? 'Voice Agents' : undefined)
+  const activeLabel = location.pathname === '/' ? '__home'
+    : PATH_TO_LABEL[location.pathname]
+    ?? (location.pathname.startsWith('/agents/') ? 'Voice Agents' : undefined)
 
   function handleNavigate(label: string) {
+    if (label === '__home') { navigate('/'); return }
     const path = LABEL_TO_PATH[label]
     if (path) navigate(path)
     else if (label === '__design_system') navigate('/__design_system')
@@ -69,7 +72,7 @@ function AppShell() {
         fullBleed={fullBleed}
       >
         <Routes>
-          <Route path="/" element={<Navigate to="/agents" replace />} />
+          <Route path="/" element={<WelcomePage />} />
           <Route path="/agents" element={
             <VoiceAgentsPage
               onOpenAgent={(id) => navigate(`/agents/${id}`)}

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { cn } from '../lib/utils'
 import { CartesiaLogo } from './CartesiaLogo'
 import {
+  IconHome,
   IconTextToSpeech, IconSpeechToText,
   IconVoiceAgents, IconAgentMetrics, IconPhoneNumbers,
   IconVoiceLibrary, IconInstantClone, IconProVoiceClone,
@@ -9,6 +10,8 @@ import {
   IconApiKeys, IconSubscription, IconUsage,
   IconDeprecatedModels, IconDocumentation, IconExternalLink
 } from './icons'
+
+const HOME_ITEM = { label: '__home', displayLabel: 'Home', Icon: IconHome }
 
 const nav = [
   {
@@ -102,9 +105,23 @@ export function Sidebar({ active = 'Voice Agents', onNavigate }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-2 py-4 flex flex-col gap-6 overflow-y-auto">
+      <nav className="flex-1 px-2 py-2 flex flex-col gap-1 overflow-y-auto">
+        {/* Home — standalone, no group label */}
+        <button
+          onClick={() => onNavigate?.(HOME_ITEM.label)}
+          className={cn(
+            'w-full flex items-center gap-3 pl-3 pr-2 rounded-[6px] text-[14px] font-[500] leading-5 transition-colors cursor-pointer text-left h-8 mb-4',
+            active === HOME_ITEM.label
+              ? 'bg-interactive-active-bg text-text-primary'
+              : 'text-neutral-700 hover:bg-[#e3e2da]'
+          )}
+        >
+          <HOME_ITEM.Icon size={16} className={cn('flex-shrink-0', active === HOME_ITEM.label ? 'text-brand' : 'text-neutral-700')} />
+          <span className="flex-1">{HOME_ITEM.displayLabel}</span>
+        </button>
+
         {nav.map(({ group, items }) => (
-          <div key={group} className="flex flex-col gap-1">
+          <div key={group} className="flex flex-col gap-0.5 mb-4">
             <p className="pl-3 text-[11.5px] font-[500] text-neutral-600 mb-0.5">
               {group}
             </p>
@@ -113,14 +130,14 @@ export function Sidebar({ active = 'Voice Agents', onNavigate }: SidebarProps) {
                 key={label}
                 onClick={() => onNavigate?.(label)}
                 className={cn(
-                  'w-full flex items-center gap-3 pl-3 pr-2 rounded-[6px] text-[13px] font-[500] transition-colors cursor-pointer text-left h-7',
+                  'w-full flex items-center gap-3 pl-3 pr-2 rounded-[6px] text-[14px] font-[500] leading-5 transition-colors cursor-pointer text-left h-8',
                   active === label
                     ? 'bg-interactive-active-bg text-text-primary'
-                    : 'text-text-muted hover:bg-bg-subtle/70'
+                    : 'text-neutral-700 hover:bg-[#e3e2da]'
                 )}
               >
-                <Icon size={16} className={cn('flex-shrink-0', active === label ? 'text-brand' : 'text-neutral-600')} />
-                <span className="flex-1 leading-none">{label}</span>
+                <Icon size={16} className={cn('flex-shrink-0', active === label ? 'text-brand' : 'text-neutral-700')} />
+                <span className="flex-1">{label}</span>
                 {external && <IconExternalLink size={11} className="text-neutral-400 flex-shrink-0" />}
               </button>
             ))}
