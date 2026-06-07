@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { Play, ChevronRight, Sparkles, Upload, Mic, Globe } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { AnamPreview } from '../avatar/AnamPreview'
+import { FACE_AGENT_GREETING } from './avatarGreeting'
 
 const FEATURES = [
   { Icon: Upload, text: 'Increases engagement by up to 44%' },
@@ -24,7 +25,7 @@ function Var1({ onGetStarted, onSeeItLive }: { onGetStarted: () => void; onSeeIt
       <div className="px-4 pt-4">
         <div className="rounded-[14px] overflow-hidden">
           <AnamPreview
-            greeting="Hi! I'm a Cartesia Face Agent — a live avatar powered by your agent's voice. Adding a face increases engagement by up to 44%, with real-time lip-sync and one embed snippet that works anywhere. You can explore live examples below, or add a face to your existing agent right now."
+            greeting={FACE_AGENT_GREETING}
             stopAfterGreeting
           />
         </div>
