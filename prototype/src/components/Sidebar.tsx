@@ -4,7 +4,7 @@ import { CartesiaLogo } from './CartesiaLogo'
 import {
   IconHome,
   IconTextToSpeech, IconSpeechToText,
-  IconVoiceAgents, IconAvatars, IconAgentMetrics, IconPhoneNumbers,
+  IconVoiceAgents, IconAvatars, IconUploadAvatar, IconAgentMetrics, IconPhoneNumbers,
   IconVoiceLibrary, IconInstantClone, IconProVoiceClone,
   IconLocalizeVoice, IconVoiceChanger, IconPronunciation,
   IconApiKeys, IconSubscription, IconUsage,
@@ -25,9 +25,15 @@ const nav = [
     group: 'Agents',
     items: [
       { label: 'Voice Agents', Icon: IconVoiceAgents },
-      { label: 'Avatars', Icon: IconAvatars },
       { label: 'Agent Metrics', Icon: IconAgentMetrics },
       { label: 'Phone Numbers', Icon: IconPhoneNumbers },
+    ],
+  },
+  {
+    group: 'Avatars',
+    items: [
+      { label: 'Avatar Library', Icon: IconAvatars },
+      { label: 'Upload Avatar', Icon: IconUploadAvatar },
     ],
   },
   {

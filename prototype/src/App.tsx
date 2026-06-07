@@ -13,7 +13,8 @@ import { OnboardingModal } from './components/discovery/OnboardingModal'
 /* URL path → sidebar label mapping (for active state) */
 const PATH_TO_LABEL: Record<string, string> = {
   '/agents':        'Voice Agents',
-  '/avatars':       'Avatars',
+  '/avatars':       'Avatar Library',
+  '/avatars/upload': 'Upload Avatar',
   '/voices':        'Voice Library',
   '/tts':           'Text-to-Speech',
   '/stt':           'Speech-to-Text',
@@ -62,7 +63,8 @@ function AppShell() {
     else if (label === '__design_system') navigate('/__design_system')
     else if (label === '__button_states') navigate('/__button_states')
     else if (label === '__agent_detail') navigate('/agents/demo')
-    else if (label === 'Avatars') navigate('/avatars')
+    else if (label === 'Avatar Library') navigate('/avatars')
+    else if (label === 'Upload Avatar') navigate('/avatars/upload')
   }
 
   const fullBleed = isFullBleed(location.pathname)
@@ -87,7 +89,7 @@ function AppShell() {
             <AgentDetailPage onBack={() => navigate('/agents')} />
           } />
           <Route path="/avatars" element={<AvatarsPage />} />
-          <Route path="/avatars/new" element={<AvatarsPage />} />
+          <Route path="/avatars/upload" element={<AvatarsPage initialTab="upload" />} />
           <Route path="/avatars/:id" element={<AvatarsPage />} />
           <Route path="/voices" element={<VoiceLibraryPage />} />
           <Route path="/__design_system" element={<DesignSystemPage />} />

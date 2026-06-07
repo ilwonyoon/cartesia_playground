@@ -34,7 +34,7 @@ function Var1({ onGetStarted, onSeeItLive }: { onGetStarted: () => void; onSeeIt
       <div className="px-5 pt-5 pb-5 flex flex-col gap-5">
         {/* Title */}
         <h2 className="text-[26px] font-[500] text-neutral-900 leading-[1.15] tracking-[-0.3px] font-serif">
-          Introducing Face Agents
+          Introducing Avatars
         </h2>
 
         {/* Benefits */}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Upload, Sparkles } from 'lucide-react'
+import { Plus, Upload } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 /* ── Mock avatar library ──────────────────────────────────────────
@@ -132,11 +132,94 @@ function AvatarCard({ avatar, onSelect }: { avatar: Avatar; onSelect: () => void
   )
 }
 
-export function AvatarsPage() {
+/* ── Upload Avatar tab ── */
+function UploadAvatarTab() {
+  const [dragging, setDragging] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragging(false)
+    const f = e.dataTransfer.files[0]
+    if (f && f.type.startsWith('image/')) setFile(f)
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h3 className="text-[19px] font-[600] text-neutral-900 leading-7">Upload Avatar</h3>
+        <p className="text-[13px] text-neutral-500 mt-0.5">
+          Upload a photo or illustration — Cartesia animates it with real-time lip-sync.
+        </p>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        className={cn(
+          'flex flex-col items-center justify-center gap-4 rounded-[12px] border-2 border-dashed p-12 transition-colors cursor-pointer',
+          dragging ? 'border-brand bg-brand-tint' : 'border-neutral-300 bg-neutral-50 hover:border-neutral-400 hover:bg-neutral-100'
+        )}
+      >
+        {file ? (
+          <>
+            <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-brand">
+              <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+            </div>
+            <div className="text-center">
+              <div className="text-[13px] font-[500] text-neutral-900">{file.name}</div>
+              <button onClick={() => setFile(null)} className="text-[12px] text-neutral-400 hover:text-neutral-600 cursor-pointer mt-1">Remove</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="w-12 h-12 rounded-full bg-neutral-200 flex items-center justify-center">
+              <Upload size={22} strokeWidth={1.5} className="text-neutral-500" />
+            </div>
+            <div className="text-center">
+              <div className="text-[13.5px] font-[500] text-neutral-700">Drop an image here</div>
+              <div className="text-[12px] text-neutral-400 mt-1">PNG, JPG, WEBP — max 10MB</div>
+            </div>
+            <label className="h-8 px-4 flex items-center gap-1.5 rounded-[7.2px] border border-neutral-400 bg-white hover:bg-neutral-50 text-[12.8px] font-[500] text-neutral-900 cursor-pointer transition-colors">
+              <input type="file" accept="image/*" className="sr-only" onChange={e => { const f = e.target.files?.[0]; if (f) setFile(f) }} />
+              Browse files
+            </label>
+          </>
+        )}
+      </div>
+
+      {/* Requirements */}
+      <div className="flex flex-col gap-2 p-4 rounded-[10px] bg-neutral-50 border border-neutral-200">
+        <div className="text-[12.5px] font-[500] text-neutral-700">For best results</div>
+        <ul className="flex flex-col gap-1">
+          {['Clear view of the face, front-facing', 'Good lighting, neutral background', 'Photo or realistic illustration'].map(tip => (
+            <li key={tip} className="flex items-center gap-2 text-[12px] text-neutral-500">
+              <span className="w-1 h-1 rounded-full bg-neutral-400 shrink-0" />
+              {tip}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {file && (
+        <button className="h-9 w-full rounded-[7.2px] bg-brand text-white text-[13px] font-[500] hover:opacity-90 cursor-pointer transition-opacity">
+          Create avatar →
+        </button>
+      )}
+    </div>
+  )
+}
+
+export function AvatarsPage({ initialTab }: { initialTab?: 'library' | 'upload' }) {
   const [industry, setIndustry] = useState<Industry>('All')
+  const [tab] = useState<'library' | 'upload'>(initialTab ?? 'library')
   const navigate = useNavigate()
 
   const filtered = industry === 'All' ? AVATARS : AVATARS.filter(a => a.industry === industry)
+
+  if (tab === 'upload') return <UploadAvatarTab />
 
   return (
     <div className="flex flex-col gap-6">
@@ -144,17 +227,17 @@ export function AvatarsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-[19px] font-[600] text-neutral-900 leading-7">Avatars</h3>
+          <h3 className="text-[19px] font-[600] text-neutral-900 leading-7">Avatar Library</h3>
           <p className="text-[13px] text-neutral-500 mt-0.5">
             Each avatar is paired with a matching voice. Attach one to any agent.
           </p>
         </div>
         <button
-          onClick={() => navigate('/avatars/new')}
+          onClick={() => navigate('/avatars/upload')}
           className="h-8 px-3 flex items-center gap-1.5 rounded-[7.2px] border border-neutral-400 bg-neutral-100 hover:bg-neutral-200 text-[12.8px] font-[500] text-neutral-900 cursor-pointer transition-colors"
         >
           <Plus size={14} strokeWidth={2} />
-          New avatar
+          Upload avatar
         </button>
       </div>
 
@@ -186,39 +269,18 @@ export function AvatarsPage() {
           />
         ))}
 
-        {/* Create your own card */}
+        {/* Upload card */}
         <button
-          onClick={() => navigate('/avatars/new')}
+          onClick={() => navigate('/avatars/upload')}
           className="flex flex-col items-center justify-center gap-3 rounded-[10px] border-2 border-dashed border-neutral-300 hover:border-neutral-400 bg-neutral-50 hover:bg-neutral-100 aspect-[4/3] cursor-pointer transition-colors p-4"
-          style={{ gridRow: 'span 1' }}
         >
           <div className="w-10 h-10 rounded-full bg-neutral-200 flex items-center justify-center">
             <Plus size={20} strokeWidth={1.5} className="text-neutral-500" />
           </div>
           <div className="text-center">
-            <div className="text-[13px] font-[500] text-neutral-600">Create your own</div>
-            <div className="text-[11.5px] text-neutral-400 mt-0.5">Upload a photo or illustration</div>
+            <div className="text-[13px] font-[500] text-neutral-600">Upload your own</div>
+            <div className="text-[11.5px] text-neutral-400 mt-0.5">Photo or illustration</div>
           </div>
-        </button>
-      </div>
-
-      {/* Upload CTA */}
-      <div className="flex items-center gap-4 p-4 rounded-[10px] border border-neutral-200 bg-neutral-50">
-        <div className="w-10 h-10 rounded-full bg-brand-tint flex items-center justify-center shrink-0">
-          <Upload size={18} strokeWidth={1.5} className="text-brand" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-[500] text-neutral-900">Bring your own face</div>
-          <div className="text-[12px] text-neutral-500 mt-0.5">
-            Upload a photo or illustration — Cartesia animates it with lip-sync powered by your agent's voice.
-          </div>
-        </div>
-        <button
-          onClick={() => navigate('/avatars/new')}
-          className="shrink-0 h-8 px-3 flex items-center gap-1.5 rounded-[7.2px] bg-brand text-white text-[12.8px] font-[500] cursor-pointer hover:opacity-90 transition-opacity"
-        >
-          <Sparkles size={14} strokeWidth={1.5} />
-          Get started
         </button>
       </div>
     </div>

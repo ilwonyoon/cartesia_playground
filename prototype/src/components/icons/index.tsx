@@ -82,3 +82,7 @@ export function IconExternalLink({ size = 12, ...props }: IconProps) {
 export function IconAvatars({ size = 16, ...props }: IconProps) {
   return <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}><path fillRule="evenodd" clipRule="evenodd" d="M8 1.5C6.067 1.5 4.5 3.067 4.5 5C4.5 6.933 6.067 8.5 8 8.5C9.933 8.5 11.5 6.933 11.5 5C11.5 3.067 9.933 1.5 8 1.5ZM3 5C3 2.239 5.239 0 8 0C10.761 0 13 2.239 13 5C13 7.761 10.761 10 8 10C5.239 10 3 7.761 3 5ZM1.5 14.5C1.5 12.015 3.515 10 6 10H10C12.485 10 14.5 12.015 14.5 14.5V16H13V14.5C13 12.843 11.657 11.5 10 11.5H6C4.343 11.5 3 12.843 3 14.5V16H1.5V14.5Z" fill="currentColor"/></svg>
 }
+
+export function IconUploadAvatar({ size = 16, ...props }: IconProps) {
+  return <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}><path fillRule="evenodd" clipRule="evenodd" d="M8 1L12 5H9.5V9.5H6.5V5H4L8 1ZM2 11H14V14.5H2V11ZM3.5 12.25V13.25H12.5V12.25H3.5Z" fill="currentColor"/></svg>
+}
