@@ -102,7 +102,7 @@ export function Sidebar({ active = 'Voice Agents', onNavigate }: SidebarProps) {
   }, [])
 
   return (
-    <aside className="w-[207px] flex-shrink-0 bg-neutral-300 flex flex-col h-screen sticky top-0 overflow-y-auto border-r border-neutral-400/50">
+    <aside className="w-[207px] flex-shrink-0 bg-neutral-300 flex flex-col h-screen sticky top-0 overflow-y-auto scrollbar-none border-r border-neutral-400/50">
 
       {/* Logo */}
       <div className="pt-5 pb-2 px-4">
@@ -112,7 +112,7 @@ export function Sidebar({ active = 'Voice Agents', onNavigate }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-2 py-2 flex flex-col gap-1 overflow-y-auto">
+      <nav className="flex-1 px-2 py-2 flex flex-col gap-1 overflow-y-auto scrollbar-none">
         {/* Home — standalone, no group label */}
         <button
           onClick={() => onNavigate?.(HOME_ITEM.label)}

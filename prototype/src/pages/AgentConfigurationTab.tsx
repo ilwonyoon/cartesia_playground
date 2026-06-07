@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, Sparkles, Check, Upload, ChevronRight, User, AlertCircle } from 'lucide-react'
+import { ChevronDown, Sparkles, Check, Upload, ChevronRight, AlertCircle } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Toggle } from '../components/ui/Toggle'
-import { AVATARS, type Avatar } from './AvatarsPage'
+import { type Avatar } from '../data/avatars'
+import { VoicePickerModal } from '../components/voice/VoicePickerModal'
+import { AvatarPickerModal } from '../components/avatar/AvatarPickerModal'
+import { type Voice } from '../data/voices'
 
 const CURRENT_VOICE = 'Skylar - Friendly Guide'
 
@@ -251,16 +254,19 @@ function VoiceOverrideDialog({ avatar, currentVoice, onConfirm, onCancel }: {
   )
 }
 
-/* ── Avatar section (shown in right column of Configuration) ── */
+/* ── Avatar section (shown in right column of Configuration) ──
+   The field opens a 2-panel picker (live preview + JTBD-grouped faces).
+   Face+voice are paired: confirming a face whose voice differs from the
+   agent's current voice routes through VoiceOverrideDialog. */
 function AvatarSection() {
   const navigate = useNavigate()
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null)
   const [pendingAvatar, setPendingAvatar] = useState<Avatar | null>(null)
-  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [currentVoice, setCurrentVoice] = useState(CURRENT_VOICE)
 
-  function handleAvatarPick(avatar: Avatar) {
-    setDropdownOpen(false)
+  function handleConfirmFromModal(avatar: Avatar) {
+    setModalOpen(false)
     if (avatar.pairedVoice !== currentVoice) {
       setPendingAvatar(avatar)
     } else {
@@ -282,57 +288,25 @@ function AvatarSection() {
         <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-brand-tint text-brand font-[600] tracking-wide uppercase">Beta</span>
       </div>
 
-      {/* Dropdown — same pattern as Voice & Language */}
-      <div className="relative">
-        <button
-          onClick={() => setDropdownOpen(v => !v)}
-          className="h-[30px] w-full flex items-center gap-2 pl-3 pr-2.5 rounded-[7.2px] border border-neutral-400 bg-neutral-100 hover:bg-neutral-200 cursor-pointer transition-colors"
-        >
-          {selectedAvatar ? (
-            <>
-              <span className="text-base leading-none">{selectedAvatar.emoji}</span>
-              <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-900 truncate">
-                {selectedAvatar.name} — {selectedAvatar.role}
-              </span>
-            </>
-          ) : (
-            <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-500 truncate">
-              No avatar selected
+      {/* Field trigger — opens the picker modal */}
+      <button
+        onClick={() => setModalOpen(true)}
+        className="h-[30px] w-full flex items-center gap-2 pl-3 pr-2.5 rounded-control border border-border-default bg-bg-control hover:bg-bg-control-hover cursor-pointer transition-colors"
+      >
+        {selectedAvatar ? (
+          <>
+            <span className="text-base leading-none">{selectedAvatar.emoji}</span>
+            <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-900 truncate">
+              {selectedAvatar.name} — {selectedAvatar.role}
             </span>
-          )}
-          <ChevronDown size={16} strokeWidth={1.33} className="text-neutral-900 shrink-0" />
-        </button>
-
-        {dropdownOpen && (
-          <div className="absolute z-20 top-full mt-1 w-full rounded-[7.2px] border border-neutral-300 bg-white shadow-md overflow-hidden">
-            {AVATARS.map(avatar => (
-              <button
-                key={avatar.id}
-                onClick={() => handleAvatarPick(avatar)}
-                className={cn(
-                  'w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-neutral-50 cursor-pointer transition-colors',
-                  selectedAvatar?.id === avatar.id && 'bg-brand-tint'
-                )}
-              >
-                <span className="text-base leading-none">{avatar.emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12.5px] font-[500] text-neutral-900 truncate">{avatar.name} — {avatar.role}</div>
-                  <div className="text-[11px] text-neutral-400 truncate">{avatar.pairedVoice}</div>
-                </div>
-              </button>
-            ))}
-            <div className="border-t border-neutral-100">
-              <button
-                onClick={() => { setDropdownOpen(false); navigate('/avatars/new') }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-neutral-50 cursor-pointer transition-colors"
-              >
-                <User size={14} className="text-neutral-400 shrink-0" />
-                <span className="text-[12.5px] font-[500] text-neutral-600">Upload your own…</span>
-              </button>
-            </div>
-          </div>
+          </>
+        ) : (
+          <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-500 truncate">
+            No avatar selected
+          </span>
         )}
-      </div>
+        <ChevronDown size={16} strokeWidth={1.33} className="text-neutral-900 shrink-0" />
+      </button>
 
       {selectedAvatar ? (
         <p className="text-[11.3px] text-neutral-600 leading-4">
@@ -347,6 +321,14 @@ function AvatarSection() {
         </p>
       )}
 
+      <AvatarPickerModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        currentVoice={currentVoice}
+        selectedAvatarId={selectedAvatar?.id}
+        onConfirm={handleConfirmFromModal}
+      />
+
       {pendingAvatar && (
         <VoiceOverrideDialog
           avatar={pendingAvatar}
@@ -359,25 +341,42 @@ function AvatarSection() {
   )
 }
 
-/* ── Right column: current (unchanged) ── */
+/* ── Right column: current ── */
 function RightColumnCurrent({ languageDetection, setLanguageDetection }: {
   languageDetection: boolean
   setLanguageDetection: (v: boolean) => void
 }) {
+  // Default to Skylar (matches CURRENT_VOICE); the picker modal swaps it.
+  const [voice, setVoice] = useState<Voice>({
+    id: 'v1', name: 'Skylar', tag: 'Friendly Guide',
+    desc: 'Approachable American female ideal for customer care and support.',
+    flag: '🇺🇸', language: 'English', accent: 'American', gender: 'Feminine', verified: true,
+  })
+  const [pickerOpen, setPickerOpen] = useState(false)
+
   return (
     <div className="flex flex-col gap-8 pt-2 min-w-0">
       <AvatarSection />
       <div className="flex flex-col gap-[17px]">
         <SectionHeading>Voice &amp; Language</SectionHeading>
-        <button className="h-[30px] w-full flex items-center gap-2 pl-5 pr-2.5 rounded-[7.2px] border border-neutral-400 bg-neutral-100 hover:bg-neutral-200 cursor-pointer">
-          <span className="text-base leading-none">🇺🇸</span>
-          <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-900 truncate">Skylar - Friendly Guide</span>
+        <button
+          onClick={() => setPickerOpen(true)}
+          className="h-[30px] w-full flex items-center gap-2 pl-5 pr-2.5 rounded-control border border-border-default bg-bg-control hover:bg-bg-control-hover cursor-pointer"
+        >
+          <span className="text-base leading-none">{voice.flag}</span>
+          <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-900 truncate">{voice.name} - {voice.tag}</span>
           <ChevronDown size={16} strokeWidth={1.33} className="text-neutral-900 shrink-0" />
         </button>
-        <p className="text-[11.3px] text-neutral-600 leading-4">Language: English</p>
+        <p className="text-[11.3px] text-neutral-600 leading-4">Language: {voice.language}</p>
       </div>
       <RightColumnASR languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} />
       <RightColumnBgSound />
+
+      <VoicePickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={setVoice}
+      />
     </div>
   )
 }
@@ -447,7 +446,7 @@ function RightColumnASR({ languageDetection, setLanguageDetection }: {
       <SectionHeading>Automatic Speech Recognition</SectionHeading>
       <div className="flex flex-col gap-2">
         <label className="text-[13.6px] font-[500] text-neutral-900 leading-[14px]">Model</label>
-        <button className="h-8 w-full flex items-center justify-between pl-[11px] pr-2.5 rounded-[7.2px] border border-neutral-400 bg-neutral-100 hover:bg-neutral-200 cursor-pointer">
+        <button className="h-8 w-full flex items-center justify-between pl-[11px] pr-2.5 rounded-control border border-border-default bg-bg-control hover:bg-bg-control-hover cursor-pointer">
           <span className="text-[12.7px] text-neutral-900">Ink-2</span>
           <ChevronDown size={16} strokeWidth={1.33} className="text-neutral-600 shrink-0" />
         </button>
@@ -474,7 +473,7 @@ function RightColumnBgSound() {
         <SectionHeading>Background Sound</SectionHeading>
         <p className="text-[12.8px] text-neutral-500 leading-5">Add sound to play in the background of your agent's speech.</p>
       </div>
-      <button className="h-[30px] w-full flex items-center gap-3 pl-5 pr-2.5 rounded-[7.2px] border border-neutral-400 bg-neutral-100 hover:bg-neutral-200 cursor-pointer">
+      <button className="h-[30px] w-full flex items-center gap-3 pl-5 pr-2.5 rounded-control border border-border-default bg-bg-control hover:bg-bg-control-hover cursor-pointer">
         <span className="text-[13.6px] font-[500] text-neutral-700 leading-5 shrink-0">Choose File</span>
         <span className="flex-1 min-w-0 text-left text-[13.3px] font-[500] text-neutral-500 leading-5 truncate">No file chosen</span>
         <Upload size={16} strokeWidth={1.33} className="text-neutral-900 shrink-0" />

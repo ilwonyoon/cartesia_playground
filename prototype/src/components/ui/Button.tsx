@@ -11,7 +11,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<Variant, string> = {
   primary:   'bg-bg-brand text-text-inverse hover:bg-brand-light',
-  secondary: 'bg-bg-surface text-text-primary border border-border-default hover:bg-bg-subtle',
+  // Secondary = control surface (search/dropdown/secondary share one resting style)
+  secondary: 'bg-bg-control text-text-primary border border-border-default hover:bg-bg-control-hover',
   ghost:     'text-text-muted hover:bg-bg-subtle',
   danger:    'bg-danger text-text-inverse hover:opacity-90',
 }

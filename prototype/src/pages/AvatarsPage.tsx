@@ -2,109 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Upload } from 'lucide-react'
 import { cn } from '../lib/utils'
-
-/* ── Mock avatar library ──────────────────────────────────────────
-   Each avatar has a paired voice. This is the source of truth —
-   when an agent picks an avatar, its voice is overridden to match. */
-
-export interface Avatar {
-  id: string
-  name: string
-  role: string
-  industry: 'Finance' | 'Healthcare' | 'Government' | 'Sales' | 'Support' | 'General'
-  gender: 'Female' | 'Male'
-  pairedVoice: string          // display name of the paired Cartesia voice
-  pairedVoiceId: string        // voice ID
-  emoji: string
-  bgColor: string
-  expressiveness: number       // 0–100
-  style: 'Realistic' | 'Illustrated' | 'Abstract'
-  isCustom?: boolean
-}
-
-export const AVATARS: Avatar[] = [
-  {
-    id: 'skylar',
-    name: 'Skylar',
-    role: 'Friendly Guide',
-    industry: 'General',
-    gender: 'Female',
-    pairedVoice: 'Skylar - Friendly Guide',
-    pairedVoiceId: 'e07c00bc-4134-4eae-9ea4-1a55fb45746b',
-    emoji: '👩',
-    bgColor: 'bg-green-100',
-    expressiveness: 70,
-    style: 'Realistic',
-  },
-  {
-    id: 'nova',
-    name: 'Nova',
-    role: 'Financial Advisor',
-    industry: 'Finance',
-    gender: 'Female',
-    pairedVoice: 'Nova - Professional',
-    pairedVoiceId: 'nova-voice-id',
-    emoji: '👩‍💼',
-    bgColor: 'bg-blue-100',
-    expressiveness: 50,
-    style: 'Realistic',
-  },
-  {
-    id: 'marcus',
-    name: 'Marcus',
-    role: 'Healthcare Coordinator',
-    industry: 'Healthcare',
-    gender: 'Male',
-    pairedVoice: 'Marcus - Calm',
-    pairedVoiceId: 'marcus-voice-id',
-    emoji: '👨‍⚕️',
-    bgColor: 'bg-teal-100',
-    expressiveness: 55,
-    style: 'Realistic',
-  },
-  {
-    id: 'aria',
-    name: 'Aria',
-    role: 'Government Assistant',
-    industry: 'Government',
-    gender: 'Female',
-    pairedVoice: 'Aria - Authoritative',
-    pairedVoiceId: 'aria-voice-id',
-    emoji: '👩‍💻',
-    bgColor: 'bg-purple-100',
-    expressiveness: 40,
-    style: 'Realistic',
-  },
-  {
-    id: 'james',
-    name: 'James',
-    role: 'Sales Representative',
-    industry: 'Sales',
-    gender: 'Male',
-    pairedVoice: 'James - Energetic',
-    pairedVoiceId: 'james-voice-id',
-    emoji: '👨‍💼',
-    bgColor: 'bg-orange-100',
-    expressiveness: 85,
-    style: 'Realistic',
-  },
-  {
-    id: 'luna',
-    name: 'Luna',
-    role: 'Customer Support',
-    industry: 'Support',
-    gender: 'Female',
-    pairedVoice: 'Luna - Warm',
-    pairedVoiceId: 'luna-voice-id',
-    emoji: '👩‍🔬',
-    bgColor: 'bg-pink-100',
-    expressiveness: 65,
-    style: 'Illustrated',
-  },
-]
-
-type Industry = 'All' | Avatar['industry']
-const INDUSTRIES: Industry[] = ['All', 'Finance', 'Healthcare', 'Government', 'Sales', 'Support', 'General']
+import { AVATARS, INDUSTRIES, type Avatar, type Industry } from '../data/avatars'
 
 function AvatarCard({ avatar, onSelect }: { avatar: Avatar; onSelect: () => void }) {
   return (
@@ -182,7 +80,7 @@ function UploadAvatarTab() {
               <div className="text-[13.5px] font-[500] text-neutral-700">Drop an image here</div>
               <div className="text-[12px] text-neutral-400 mt-1">PNG, JPG, WEBP — max 10MB</div>
             </div>
-            <label className="h-8 px-4 flex items-center gap-1.5 rounded-[7.2px] border border-neutral-400 bg-white hover:bg-neutral-50 text-[12.8px] font-[500] text-neutral-900 cursor-pointer transition-colors">
+            <label className="h-8 px-4 flex items-center gap-1.5 rounded-control border border-border-default bg-bg-control hover:bg-bg-control-hover text-[12.8px] font-[500] text-neutral-900 cursor-pointer transition-colors">
               <input type="file" accept="image/*" className="sr-only" onChange={e => { const f = e.target.files?.[0]; if (f) setFile(f) }} />
               Browse files
             </label>
@@ -234,7 +132,7 @@ export function AvatarsPage({ initialTab }: { initialTab?: 'library' | 'upload' 
         </div>
         <button
           onClick={() => navigate('/avatars/upload')}
-          className="h-8 px-3 flex items-center gap-1.5 rounded-[7.2px] border border-neutral-400 bg-neutral-100 hover:bg-neutral-200 text-[12.8px] font-[500] text-neutral-900 cursor-pointer transition-colors"
+          className="h-8 px-3 flex items-center gap-1.5 rounded-control border border-border-default bg-bg-control hover:bg-bg-control-hover text-[12.8px] font-[500] text-neutral-900 cursor-pointer transition-colors"
         >
           <Plus size={14} strokeWidth={2} />
           Upload avatar

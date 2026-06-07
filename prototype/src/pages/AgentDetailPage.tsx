@@ -406,7 +406,7 @@ function CallButton({ hasNumber }: { inProgress: boolean; onToggle: () => void; 
 
   if (!hasNumber) {
     return (
-      <button className="h-[30px] px-3 rounded-[7.2px] border border-neutral-400 bg-neutral-100 text-[13px] font-[500] text-neutral-900 hover:bg-neutral-200 cursor-pointer whitespace-nowrap transition-colors">
+      <button className="h-[30px] px-3 rounded-control border border-border-default bg-bg-control text-[13px] font-[500] text-neutral-900 hover:bg-bg-control-hover cursor-pointer whitespace-nowrap transition-colors">
         Get Phone Number
       </button>
     )

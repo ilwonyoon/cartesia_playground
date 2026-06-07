@@ -9,7 +9,7 @@
  *     Local prototyping only — production uses server-minted session tokens.
  */
 import { useEffect, useId, useRef, useState } from 'react'
-import { Loader2, AlertCircle, Mic, MicOff } from 'lucide-react'
+import { Loader2, AlertCircle, Mic, MicOff, Play } from 'lucide-react'
 
 const API_KEY    = import.meta.env.VITE_ANAM_API_KEY    as string | undefined
 const PERSONA_ID = import.meta.env.VITE_ANAM_PERSONA_ID as string | undefined
@@ -32,6 +32,14 @@ interface AnamPreviewProps {
   systemPrompt?: string
   onReady?: (sendAudio: (pcmBase64: string) => void) => void
   className?: string
+  /** Onboarding cover ("Add a face to your agent"). Default true. Set false
+      in pickers where the live video should stand alone. */
+  showCoverArt?: boolean
+  /** Don't auto-connect on mount — show a poster + Play button and only start
+      streaming when the user clicks. Saves Anam session cost. Default false. */
+  manualStart?: boolean
+  /** Still poster shown before streaming (face thumbnail) in manualStart mode. */
+  posterUrl?: string
 }
 
 const COVER = '/cartesia_cover.webp'
@@ -46,17 +54,22 @@ export function AnamPreview({
   systemPrompt,
   onReady,
   className = '',
+  showCoverArt = true,
+  manualStart = false,
+  posterUrl,
 }: AnamPreviewProps) {
   const videoId = useId().replace(/:/g, '_')
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError]   = useState('')
   const [greetingDone, setGreetingDone] = useState(false)
+  // In manualStart mode, streaming only begins once the user presses Play.
+  const [armed, setArmed] = useState(!manualStart)
   const onGreetingDoneRef = useRef(onGreetingDone)
   onGreetingDoneRef.current = onGreetingDone
   const micOn = micEnabled
 
   useEffect(() => {
-    if (!HAS_KEYS) return
+    if (!HAS_KEYS || !armed) return
     let cancelled = false
     let client: any = null
 
@@ -117,7 +130,7 @@ export function AnamPreview({
       cancelled = true
       client?.stopStreaming?.().catch(() => {})
     }
-  }, [greeting, stopAfterGreeting, micEnabled, avatarId, systemPrompt])
+  }, [armed, greeting, stopAfterGreeting, micEnabled, avatarId, systemPrompt])
 
   if (!HAS_KEYS) {
     return (
@@ -134,22 +147,30 @@ export function AnamPreview({
     )
   }
 
-  const showCover = status === 'idle' || status === 'connecting' || greetingDone
+  // With cover art on: also reveal the cover after greeting ends (onboarding feel).
+  // With cover art off (pickers): only cover while idle/connecting; keep live video after greeting.
+  const showCover = status === 'idle' || status === 'connecting' || (showCoverArt && greetingDone)
 
   return (
-    <div className={`relative overflow-hidden aspect-video ${className}`} style={{ backgroundImage: `url(${COVER})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+    <div className={`relative overflow-hidden aspect-video ${className}`} style={showCoverArt ? { backgroundImage: `url(${COVER})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { backgroundColor: '#1c1b1a' }}>
       <video id={videoId} autoPlay playsInline muted={outputMuted} className="absolute inset-0 w-full h-full object-cover" />
 
-      {/* Cover image — shown while connecting and after greeting ends */}
-      <div className={`absolute inset-0 transition-opacity duration-500 ${showCover ? 'opacity-100' : 'opacity-0'}`}>
-        <img src={COVER} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/20" />
-        {greeting && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-white text-[28px] leading-[1.2] tracking-[-0.4px] font-serif text-center drop-shadow-lg px-6">
-              Add a face to<br />your agent
-            </p>
-          </div>
+      {/* Cover / connecting state */}
+      <div className={`absolute inset-0 transition-opacity duration-500 ${showCover ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        {showCoverArt ? (
+          <>
+            <img src={COVER} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/20" />
+            {greeting && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <p className="text-white text-[28px] leading-[1.2] tracking-[-0.4px] font-serif text-center drop-shadow-lg px-6">
+                  Add a face to<br />your agent
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-neutral-900" />
         )}
         {status === 'connecting' && (
           <div className="absolute top-4 right-4 flex items-center gap-1.5">
@@ -158,6 +179,26 @@ export function AnamPreview({
           </div>
         )}
       </div>
+
+      {/* Manual-start poster — still image + Play button, no stream until clicked */}
+      {manualStart && !armed && (
+        <div className="absolute inset-0">
+          {posterUrl
+            ? <img src={posterUrl} alt="" className="w-full h-full object-cover" />
+            : <div className="absolute inset-0 bg-neutral-900" />}
+          <div className="absolute inset-0 bg-black/15" />
+          <button
+            onClick={() => setArmed(true)}
+            className="absolute inset-0 flex items-center justify-center group cursor-pointer"
+            aria-label="Play preview"
+          >
+            <span className="flex items-center gap-2 h-11 pl-4 pr-5 rounded-full bg-brand text-white shadow-lg group-hover:bg-brand-light transition-colors">
+              <Play size={16} className="fill-current" />
+              <span className="text-[13px] font-[600]">Play preview</span>
+            </span>
+          </button>
+        </div>
+      )}
 
       {status === 'error' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">

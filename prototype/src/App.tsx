@@ -39,6 +39,10 @@ function isFullBleed(pathname: string) {
   return pathname.startsWith('/agents/') && pathname !== '/agents'
 }
 
+function isWide(pathname: string) {
+  return pathname === '/voices'
+}
+
 function ComingSoon({ label }: { label: string }) {
   return (
     <div className="flex items-center justify-center h-48 px-4">
@@ -68,6 +72,7 @@ function AppShell() {
   }
 
   const fullBleed = isFullBleed(location.pathname)
+  const wide = isWide(location.pathname)
 
   return (
     <>
@@ -75,6 +80,7 @@ function AppShell() {
         active={activeLabel}
         onNavigate={handleNavigate}
         fullBleed={fullBleed}
+        wide={wide}
       >
         <Routes>
           <Route path="/" element={<WelcomePage />} />

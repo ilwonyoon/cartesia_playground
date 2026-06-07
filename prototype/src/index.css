@@ -82,6 +82,15 @@
   --color-bg-brand:    var(--color-brand);
   --color-bg-brand-tint: var(--color-brand-tint);
 
+  /* ── Semantic: Control surface ──
+     The ONE shared resting surface for inline controls — search inputs,
+     dropdown / combobox buttons, and secondary (ghost-bordered) buttons.
+     bg #f9f9f8 + border #dfdcd7 + radius 10px + hover #f4f4f4.
+     Always pair `bg-bg-control` with `border-border-default rounded-control`.
+     See <SearchField>, <FilterButton>, Button variant="secondary". */
+  --color-bg-control:       var(--color-neutral-100); /* #f9f9f8 resting */
+  --color-bg-control-hover: var(--color-neutral-200); /* #f4f4f4 hover   */
+
   /* ── Semantic: Border ── */
   --color-border-default: var(--color-neutral-400);
   --color-border-subtle:  var(--color-neutral-300);
@@ -98,6 +107,7 @@
   --radius-xl:   14px;
   --radius-2xl:  16px;
   --radius-full: 9999px;
+  --radius-control: 10px;  /* control surfaces — search / dropdown / secondary btn */
 
   /* ── Typography ── */
   --font-sans:    'ABC Diatype', -apple-system, BlinkMacSystemFont, sans-serif;
