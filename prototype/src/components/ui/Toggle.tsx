@@ -18,14 +18,14 @@ export function Toggle({ checked, onChange, label, badge, description, disabled 
         onClick={() => !disabled && onChange(!checked)}
         disabled={disabled}
         className={cn(
-          'relative flex-shrink-0 h-5 w-9 rounded-[--radius-full] transition-colors cursor-pointer',
+          'relative flex-shrink-0 h-5 w-9 rounded-full transition-colors cursor-pointer',
           'focus:outline-none focus:ring-2 focus:ring-brand/30',
-          checked ? 'bg-bg-brand' : 'bg-border-default',
+          checked ? 'bg-brand' : 'bg-neutral-300',
           disabled && 'opacity-50 cursor-not-allowed'
         )}
       >
         <span className={cn(
-          'absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-text-inverse shadow-sm transition-transform',
+          'absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
           checked && 'translate-x-4'
         )} />
       </button>
