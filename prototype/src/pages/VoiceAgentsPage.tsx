@@ -57,9 +57,9 @@ const AGENTS: Agent[] = [
   { name: 'appointment-scheduler', status: 'Deployed', source: 'Playground', updated: 'Updated 2h ago' },
 ]
 
-function AgentRow({ agent }: { agent: Agent }) {
+function AgentRow({ agent, onClick }: { agent: Agent; onClick?: (id: string) => void }) {
   return (
-    <a className="flex items-center gap-3 px-[23px] py-3.5 rounded-2xl cursor-pointer border border-transparent hover:bg-[#f1f0ed] transition-colors">
+    <a onClick={() => onClick?.(agent.name)} className="flex items-center gap-3 px-[23px] py-3.5 rounded-2xl cursor-pointer border border-transparent hover:bg-[#f1f0ed] transition-colors">
       {/* Name + meta — status shown as a dot before the title */}
       <div className="flex-1 min-w-0 flex flex-col gap-1">
         <div className="flex items-center gap-2 min-w-0">
@@ -85,7 +85,7 @@ function AgentRow({ agent }: { agent: Agent }) {
   )
 }
 
-export function VoiceAgentsPage() {
+export function VoiceAgentsPage({ onOpenAgent }: { onOpenAgent?: (id: string) => void }) {
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<StatusKey>('all')
 
@@ -171,7 +171,7 @@ export function VoiceAgentsPage() {
           {AGENTS
             .filter(a => a.name.toLowerCase().includes(search.toLowerCase()))
             .map((agent, i) => (
-              <AgentRow key={i} agent={agent} />
+              <AgentRow key={i} agent={agent} onClick={onOpenAgent} />
             ))}
         </div>
       </div>

@@ -120,4 +120,6 @@
     color: var(--color-text-primary);
     -webkit-font-smoothing: antialiased;
   }
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
 }

@@ -15,7 +15,10 @@ export function AppLayout({ children, active, onNavigate, fullBleed = false }: A
     <div className="flex min-h-screen bg-neutral-100">
       <Sidebar active={active} onNavigate={onNavigate} />
       {fullBleed ? (
-        <main className="flex-1 min-w-0 overflow-y-auto">
+        /* Full-bleed pages own a fixed-viewport shell: the main area never scrolls
+           itself (overflow-hidden, h-screen) so the page can confine scrolling to an
+           inner column — keeping header/tabs static and free of a full-height scrollbar. */
+        <main className="flex-1 min-w-0 h-screen overflow-hidden">
           {children}
         </main>
       ) : (
