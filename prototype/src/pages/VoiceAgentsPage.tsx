@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Plus, GitBranch, Sparkles } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, GitBranch } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 /* Search glyph — exact Figma path (56:180), filled not stroked. */
@@ -83,7 +83,7 @@ export function VoiceAgentsPage({ onOpenAgent, onStartAvatar }: { onOpenAgent?: 
     <div className="flex flex-col gap-4 max-w-[1088px]">
 
       {/* Header row */}
-      <div className="flex items-start justify-between h-9">
+      <div className="flex items-center justify-between h-9">
         <div className="flex items-center gap-3">
           <h1 className="text-[24px] font-[500] text-neutral-900 leading-[32px] font-serif">Voice Agents</h1>
           {/* Discovery — promo pill beside title */}
@@ -95,14 +95,13 @@ export function VoiceAgentsPage({ onOpenAgent, onStartAvatar }: { onOpenAgent?: 
               New
             </span>
             <span className="text-[13px] font-[500] text-neutral-700 whitespace-nowrap">Give your agent a face</span>
-            <Sparkles size={12} className="text-neutral-400 group-hover:text-brand transition-colors" />
           </button>
         </div>
         {/* Create voice agent — primary split button */}
-        <div className="flex gap-px p-px pt-1">
+        <div className="flex gap-px p-px">
           <button className="h-[30px] pl-2.5 pr-2.5 bg-brand text-white text-[13.1px] font-[500] rounded-l-[7.2px] flex items-center gap-1.5 hover:bg-brand-light transition-colors cursor-pointer whitespace-nowrap">
             <Plus size={16} strokeWidth={2.2} />
-            Create voice agent
+            New agent
           </button>
           <button className="h-[30px] w-[31px] bg-brand text-white rounded-r-[7.2px] flex items-center justify-center hover:bg-brand-light transition-colors cursor-pointer">
             <ChevronDown size={16} strokeWidth={1.33} />
