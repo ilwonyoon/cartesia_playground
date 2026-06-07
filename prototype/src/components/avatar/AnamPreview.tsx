@@ -8,7 +8,7 @@
  * ⚠️  unsafe_createClientWithApiKey exposes the key in the browser.
  *     Local prototyping only — production uses server-minted session tokens.
  */
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Loader2, AlertCircle, Mic, MicOff } from 'lucide-react'
 
 const API_KEY    = import.meta.env.VITE_ANAM_API_KEY    as string | undefined
@@ -18,7 +18,15 @@ const HAS_KEYS   = !!(API_KEY && PERSONA_ID)
 type Status = 'idle' | 'connecting' | 'live' | 'error'
 
 interface AnamPreviewProps {
+  /** Speak this line once after connecting. */
+  greeting?: string
+  /** If true, stop streaming after greeting ends. Default false (keep session alive). */
+  stopAfterGreeting?: boolean
+  /** Called when greeting finishes (endOfSpeech). */
+  onGreetingDone?: () => void
   micEnabled?: boolean
+  /** Mute the avatar's audio output (video element muted). Default false. */
+  outputMuted?: boolean
   /** Override which Anam avatar to stream. Falls back to VITE_ANAM_PERSONA_ID. */
   avatarId?: string
   systemPrompt?: string
@@ -26,8 +34,14 @@ interface AnamPreviewProps {
   className?: string
 }
 
+const COVER = '/cartesia_cover.webp'
+
 export function AnamPreview({
+  greeting,
+  stopAfterGreeting = false,
+  onGreetingDone,
   micEnabled = true,
+  outputMuted = false,
   avatarId,
   systemPrompt,
   onReady,
@@ -36,6 +50,9 @@ export function AnamPreview({
   const videoId = useId().replace(/:/g, '_')
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError]   = useState('')
+  const [greetingDone, setGreetingDone] = useState(false)
+  const onGreetingDoneRef = useRef(onGreetingDone)
+  onGreetingDoneRef.current = onGreetingDone
   const micOn = micEnabled
 
   useEffect(() => {
@@ -51,13 +68,13 @@ export function AnamPreview({
         client = unsafe_createClientWithApiKey(
           API_KEY!,
           {
-            personaId: PERSONA_ID!,
+            personaId: avatarId ?? PERSONA_ID!,
             name: '',
-            avatarId: avatarId ?? '',
+            avatarId: '',
             voiceId: '',
             ...(systemPrompt ? { systemPrompt } : {}),
           },
-          { disableInputAudio: !micEnabled }
+          { disableInputAudio: !!greeting || !micEnabled }
         )
 
         if (cancelled) return
@@ -66,7 +83,20 @@ export function AnamPreview({
 
         setStatus('live')
 
-        if (!micEnabled) {
+        if (greeting) {
+          // Wait for VIDEO_PLAY_STARTED before talking — talk() requires active streaming.
+          const { AnamEvent } = await import('@anam-ai/js-sdk')
+          client.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, (e: { endOfSpeech: boolean }) => {
+            if (e.endOfSpeech && !cancelled) {
+              setGreetingDone(true)
+              onGreetingDoneRef.current?.()
+              if (stopAfterGreeting) client?.stopStreaming?.().catch(() => {})
+            }
+          })
+          client.addListener(AnamEvent.VIDEO_PLAY_STARTED, () => {
+            client?.talk(greeting).catch((err: unknown) => console.error('[AnamPreview] talk() failed:', err))
+          })
+        } else if (!micEnabled) {
           const stream = client.createAgentAudioInputStream({
             encoding: 'pcm_s16le',
             sampleRate: 16000,
@@ -87,7 +117,7 @@ export function AnamPreview({
       cancelled = true
       client?.stopStreaming?.().catch(() => {})
     }
-  }, [micEnabled, avatarId, systemPrompt])
+  }, [greeting, stopAfterGreeting, micEnabled, avatarId, systemPrompt])
 
   if (!HAS_KEYS) {
     return (
@@ -104,22 +134,38 @@ export function AnamPreview({
     )
   }
 
+  const showCover = status === 'idle' || status === 'connecting' || greetingDone
+
   return (
-    <div className={`relative bg-neutral-900 overflow-hidden aspect-video ${className}`}>
-      <video id={videoId} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
-      {status === 'connecting' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-          <Loader2 size={28} className="text-white/50 animate-spin" />
-          <p className="text-white/40 text-[13px]">Connecting…</p>
-        </div>
-      )}
+    <div className={`relative overflow-hidden aspect-video ${className}`} style={{ backgroundImage: `url(${COVER})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+      <video id={videoId} autoPlay playsInline muted={outputMuted} className="absolute inset-0 w-full h-full object-cover" />
+
+      {/* Cover image — shown while connecting and after greeting ends */}
+      <div className={`absolute inset-0 transition-opacity duration-500 ${showCover ? 'opacity-100' : 'opacity-0'}`}>
+        <img src={COVER} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/20" />
+        {greeting && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="text-white text-[28px] leading-[1.2] tracking-[-0.4px] font-serif text-center drop-shadow-lg px-6">
+              Add a face to<br />your agent
+            </p>
+          </div>
+        )}
+        {status === 'connecting' && (
+          <div className="absolute top-4 right-4 flex items-center gap-1.5">
+            <Loader2 size={14} className="text-white/60 animate-spin" />
+            <span className="text-white/50 text-[11px] font-[500]">Connecting…</span>
+          </div>
+        )}
+      </div>
+
       {status === 'error' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
           <AlertCircle size={22} className="text-red-400" />
           <p className="text-white/60 text-[13px]">{error}</p>
         </div>
       )}
-      {status === 'live' && (
+      {status === 'live' && !greetingDone && (
         <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10">
           {micOn ? <Mic size={12} className="text-brand-light" /> : <MicOff size={12} className="text-white/40" />}
           <span className="text-[11px] text-white/60 font-[500]">{micOn ? 'Mic on' : 'Mic off'}</span>
