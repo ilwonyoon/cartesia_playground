@@ -7,11 +7,13 @@ import { VoiceLibraryPage } from './pages/VoiceLibraryPage'
 import { DesignSystemPage } from './pages/DesignSystemPage'
 import { ButtonStateSandbox } from './pages/ButtonStateSandbox'
 import { AgentDetailPage } from './pages/AgentDetailPage'
+import { AvatarsPage } from './pages/AvatarsPage'
 import { OnboardingModal } from './components/discovery/OnboardingModal'
 
 /* URL path → sidebar label mapping (for active state) */
 const PATH_TO_LABEL: Record<string, string> = {
   '/agents':        'Voice Agents',
+  '/avatars':       'Avatars',
   '/voices':        'Voice Library',
   '/tts':           'Text-to-Speech',
   '/stt':           'Speech-to-Text',
@@ -60,6 +62,7 @@ function AppShell() {
     else if (label === '__design_system') navigate('/__design_system')
     else if (label === '__button_states') navigate('/__button_states')
     else if (label === '__agent_detail') navigate('/agents/demo')
+    else if (label === 'Avatars') navigate('/avatars')
   }
 
   const fullBleed = isFullBleed(location.pathname)
@@ -82,6 +85,9 @@ function AppShell() {
           <Route path="/agents/:id" element={
             <AgentDetailPage onBack={() => navigate('/agents')} />
           } />
+          <Route path="/avatars" element={<AvatarsPage />} />
+          <Route path="/avatars/new" element={<AvatarsPage />} />
+          <Route path="/avatars/:id" element={<AvatarsPage />} />
           <Route path="/voices" element={<VoiceLibraryPage />} />
           <Route path="/__design_system" element={<DesignSystemPage />} />
           <Route path="/__button_states" element={<ButtonStateSandbox />} />
