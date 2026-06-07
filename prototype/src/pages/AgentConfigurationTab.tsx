@@ -1,7 +1,11 @@
 import { useState } from 'react'
-import { ChevronDown, Sparkles, Check, Upload, ChevronRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronDown, Sparkles, Check, Upload, ChevronRight, User, AlertCircle } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Toggle } from '../components/ui/Toggle'
+import { AVATARS, type Avatar } from './AvatarsPage'
+
+const CURRENT_VOICE = 'Skylar - Friendly Guide'
 
 type Variation = 'current' | 'v1' | 'v2'
 
@@ -200,6 +204,161 @@ function PersonaPickerSheet({ selected, onSelect, onClose }: {
   )
 }
 
+/* ── Voice override confirmation dialog ── */
+function VoiceOverrideDialog({ avatar, currentVoice, onConfirm, onCancel }: {
+  avatar: Avatar
+  currentVoice: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onCancel}>
+      <div className="absolute inset-0 bg-black/20" />
+      <div
+        className="relative w-[380px] bg-white rounded-[12px] shadow-2xl p-5 flex flex-col gap-4"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+            <AlertCircle size={16} className="text-amber-600" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="text-[13.5px] font-[600] text-neutral-900">Replace voice?</div>
+            <p className="text-[12.5px] text-neutral-600 leading-5">
+              <span className="font-[500] text-neutral-900">{avatar.name}</span> is paired with{' '}
+              <span className="font-[500] text-neutral-900">{avatar.pairedVoice}</span>.
+              This will replace your current voice{' '}
+              <span className="font-[500] text-neutral-900">({currentVoice})</span>.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="h-8 px-3 rounded-[7px] border border-neutral-300 bg-white text-[12.5px] font-[500] text-neutral-700 hover:bg-neutral-50 cursor-pointer transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="h-8 px-3 rounded-[7px] bg-brand text-white text-[12.5px] font-[500] hover:opacity-90 cursor-pointer transition-opacity"
+          >
+            Replace voice &amp; apply avatar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Avatar section (shown in right column of Configuration) ── */
+function AvatarSection() {
+  const navigate = useNavigate()
+  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null)
+  const [pendingAvatar, setPendingAvatar] = useState<Avatar | null>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [currentVoice, setCurrentVoice] = useState(CURRENT_VOICE)
+
+  function handleAvatarPick(avatar: Avatar) {
+    setDropdownOpen(false)
+    if (avatar.pairedVoice !== currentVoice) {
+      setPendingAvatar(avatar)
+    } else {
+      setSelectedAvatar(avatar)
+    }
+  }
+
+  function confirmOverride() {
+    if (!pendingAvatar) return
+    setCurrentVoice(pendingAvatar.pairedVoice)
+    setSelectedAvatar(pendingAvatar)
+    setPendingAvatar(null)
+  }
+
+  return (
+    <div className="flex flex-col gap-[17px]">
+      <div className="flex items-center justify-between">
+        <SectionHeading>Avatar</SectionHeading>
+        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-brand-tint text-brand font-[600] tracking-wide uppercase">Beta</span>
+      </div>
+
+      {/* Dropdown — same pattern as Voice & Language */}
+      <div className="relative">
+        <button
+          onClick={() => setDropdownOpen(v => !v)}
+          className="h-[30px] w-full flex items-center gap-2 pl-3 pr-2.5 rounded-[7.2px] border border-neutral-400 bg-neutral-100 hover:bg-neutral-200 cursor-pointer transition-colors"
+        >
+          {selectedAvatar ? (
+            <>
+              <span className="text-base leading-none">{selectedAvatar.emoji}</span>
+              <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-900 truncate">
+                {selectedAvatar.name} — {selectedAvatar.role}
+              </span>
+            </>
+          ) : (
+            <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-500 truncate">
+              No avatar selected
+            </span>
+          )}
+          <ChevronDown size={16} strokeWidth={1.33} className="text-neutral-900 shrink-0" />
+        </button>
+
+        {dropdownOpen && (
+          <div className="absolute z-20 top-full mt-1 w-full rounded-[7.2px] border border-neutral-300 bg-white shadow-md overflow-hidden">
+            {AVATARS.map(avatar => (
+              <button
+                key={avatar.id}
+                onClick={() => handleAvatarPick(avatar)}
+                className={cn(
+                  'w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-neutral-50 cursor-pointer transition-colors',
+                  selectedAvatar?.id === avatar.id && 'bg-brand-tint'
+                )}
+              >
+                <span className="text-base leading-none">{avatar.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12.5px] font-[500] text-neutral-900 truncate">{avatar.name} — {avatar.role}</div>
+                  <div className="text-[11px] text-neutral-400 truncate">{avatar.pairedVoice}</div>
+                </div>
+              </button>
+            ))}
+            <div className="border-t border-neutral-100">
+              <button
+                onClick={() => { setDropdownOpen(false); navigate('/avatars/new') }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-neutral-50 cursor-pointer transition-colors"
+              >
+                <User size={14} className="text-neutral-400 shrink-0" />
+                <span className="text-[12.5px] font-[500] text-neutral-600">Upload your own…</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {selectedAvatar ? (
+        <p className="text-[11.3px] text-neutral-600 leading-4">
+          Voice: {selectedAvatar.pairedVoice}
+        </p>
+      ) : (
+        <p className="text-[11.3px] text-neutral-500 leading-4">
+          Avatars are paired with a voice. Selecting one may update your current voice.{' '}
+          <button onClick={() => navigate('/avatars')} className="text-brand hover:underline cursor-pointer">
+            Browse all →
+          </button>
+        </p>
+      )}
+
+      {pendingAvatar && (
+        <VoiceOverrideDialog
+          avatar={pendingAvatar}
+          currentVoice={currentVoice}
+          onConfirm={confirmOverride}
+          onCancel={() => setPendingAvatar(null)}
+        />
+      )}
+    </div>
+  )
+}
+
 /* ── Right column: current (unchanged) ── */
 function RightColumnCurrent({ languageDetection, setLanguageDetection }: {
   languageDetection: boolean
@@ -207,6 +366,7 @@ function RightColumnCurrent({ languageDetection, setLanguageDetection }: {
 }) {
   return (
     <div className="flex flex-col gap-8 pt-2 min-w-0">
+      <AvatarSection />
       <div className="flex flex-col gap-[17px]">
         <SectionHeading>Voice &amp; Language</SectionHeading>
         <button className="h-[30px] w-full flex items-center gap-2 pl-5 pr-2.5 rounded-[7.2px] border border-neutral-400 bg-neutral-100 hover:bg-neutral-200 cursor-pointer">

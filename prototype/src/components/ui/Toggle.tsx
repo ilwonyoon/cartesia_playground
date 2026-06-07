@@ -20,7 +20,7 @@ export function Toggle({ checked, onChange, label, badge, description, disabled 
         className={cn(
           'relative flex-shrink-0 h-5 w-9 rounded-full transition-colors cursor-pointer',
           'focus:outline-none focus:ring-2 focus:ring-brand/30',
-          checked ? 'bg-brand' : 'bg-neutral-300',
+          checked ? 'bg-brand' : 'bg-neutral-400',
           disabled && 'opacity-50 cursor-not-allowed'
         )}
       >
