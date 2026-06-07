@@ -8,87 +8,43 @@ import { X, Play, ChevronRight, Sparkles, Upload, Mic, Globe, Loader2 } from 'lu
 import { cn } from '../../lib/utils'
 import { AnamPreview } from '../avatar/AnamPreview'
 
-/* ── Data ─────────────────────────────────────────────────────── */
-const SAMPLES = [
-  { id: 'a', label: 'Customer Support', initial: 'CS', bg: 'from-[#1a3a2a] to-[#0d1f15]', style: 'Photo',
-    phrase: "Hi! How can I help you today? I'm here to make sure you get the best experience." },
-  { id: 'b', label: 'Sales Assistant', initial: 'SA', bg: 'from-[#1a2a3a] to-[#0d1520]', style: 'Photo',
-    phrase: "Let me walk you through what makes this the right fit for your team." },
-  { id: 'c', label: 'Onboarding Guide', initial: 'OG', bg: 'from-[#2a1a3a] to-[#15102a]', style: 'Illustrated',
-    phrase: "Welcome aboard! I'll guide you step by step — ask me anything along the way." },
-  { id: 'd', label: 'Brand Character', initial: 'BC', bg: 'from-[#3a2a1a] to-[#201508]', style: 'Character',
-    phrase: "Hey! I'm your always-on assistant. Ask me anything, day or night." },
-  { id: 'e', label: 'Educator', initial: 'ED', bg: 'from-[#1a3a3a] to-[#0d1f1f]', style: 'Illustrated',
-    phrase: "Learning is better together. Let's break this down into clear, simple steps." },
-]
-
 const FEATURES = [
-  { Icon: Upload, text: 'Upload any photo, illustration, or character' },
-  { Icon: Mic,    text: 'Powered by your Cartesia agent voice' },
-  { Icon: Globe,  text: 'Embed on any website in minutes' },
+  { Icon: Upload, text: 'Increases engagement by up to 44%' },
+  { Icon: Mic,    text: 'Real-time lip-sync powered by Cartesia voice' },
+  { Icon: Globe,  text: 'One embed snippet, works anywhere' },
 ]
 
 type ModalVariant = 'v1' | 'v2'
 
 
 
-/* ── Variation 1 — hero + bullets ─────────────────────────────── */
+/* ── Variation 1 — introducing Face Agents ───────────────────── */
 function Var1({ onGetStarted }: { onGetStarted: () => void }) {
-  const [active, setActive] = useState(SAMPLES[0])
-
-  function play(s = active) {
-    setActive(s)
-  }
-
   return (
     <div className="flex flex-col">
-      {/* Real Anam avatar when keys are set, mock HeroStage otherwise */}
-      <AnamPreview
-        micEnabled={true}
-        systemPrompt="You are a friendly demo assistant for Cartesia's new avatar feature called 'Give your agent a face'. Introduce yourself briefly, explain that users can attach an animated avatar to any Cartesia voice agent and embed it on their website. Be warm, concise, and enthusiastic. Speak naturally — no bullet points or formatting."
-      />
+      {/* Avatar — inset with padding (floating feel) */}
+      <div className="px-4 pt-4">
+        <div className="rounded-[14px] overflow-hidden">
+          <AnamPreview
+            micEnabled={true}
+          />
+        </div>
+      </div>
 
-
-      <div className="px-6 pt-5 pb-6 flex flex-col gap-5">
+      <div className="px-5 pt-5 pb-5 flex flex-col gap-5">
         {/* Title */}
-        <div>
-          <h2 className="text-[21px] font-[600] text-neutral-900 leading-[1.2] tracking-[-0.2px]">
-            Give your agent a face
-          </h2>
-          <p className="text-[14px] text-neutral-500 mt-1.5 leading-relaxed">
-            Add an animated avatar that speaks in your agent's voice, then embed it anywhere.
-          </p>
-        </div>
+        <h2 className="text-[26px] font-[500] text-neutral-900 leading-[1.15] tracking-[-0.3px] font-serif">
+          Introducing Face Agents
+        </h2>
 
-        {/* Sample selector row */}
-        <div className="flex items-center gap-2">
-          <p className="text-[12px] text-neutral-400 mr-1 whitespace-nowrap">Try a sample</p>
-          {SAMPLES.map(s => (
-            <button
-              key={s.id}
-              onClick={() => play(s)}
-              title={s.label}
-              className={cn(
-                'w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-[600] text-white/90 transition-all cursor-pointer flex-shrink-0',
-                `bg-gradient-to-br ${s.bg}`,
-                active.id === s.id
-                  ? 'ring-2 ring-brand ring-offset-1 scale-110'
-                  : 'opacity-70 hover:opacity-100'
-              )}
-            >
-              {s.initial}
-            </button>
-          ))}
-        </div>
-
-        {/* Feature bullets */}
-        <div className="flex flex-col divide-y divide-neutral-100">
+        {/* Benefits — icon + single line (Dubbing v2 pattern) */}
+        <div className="flex flex-col gap-4">
           {FEATURES.map(({ Icon, text }) => (
-            <div key={text} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-              <div className="w-7 h-7 rounded-[7px] bg-brand-tint flex items-center justify-center flex-shrink-0">
-                <Icon size={14} className="text-brand" />
+            <div key={text} className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-[8px] bg-brand-tint flex items-center justify-center flex-shrink-0">
+                <Icon size={15} className="text-brand" />
               </div>
-              <p className="text-[13.5px] text-neutral-700">{text}</p>
+              <p className="text-[14px] text-neutral-700 leading-snug">{text}</p>
             </div>
           ))}
         </div>
@@ -96,17 +52,17 @@ function Var1({ onGetStarted }: { onGetStarted: () => void }) {
         {/* CTAs */}
         <div className="flex gap-2.5 pt-1">
           <button
-            onClick={() => play()}
+            onClick={onGetStarted}
             className="flex-1 h-10 flex items-center justify-center gap-2 rounded-[9px] border border-neutral-300 bg-white text-[13.5px] font-[500] text-neutral-800 hover:bg-neutral-50 transition-colors cursor-pointer"
           >
             <Play size={13} className="text-neutral-500" />
-            Play sample
+            See it live
           </button>
           <button
             onClick={onGetStarted}
-            className="flex-1 h-10 flex items-center justify-center gap-1.5 rounded-[9px] bg-neutral-900 text-white text-[13.5px] font-[500] hover:bg-neutral-800 transition-colors cursor-pointer"
+            className="flex-1 h-10 flex items-center justify-center gap-1.5 rounded-[9px] bg-brand text-white text-[13.5px] font-[500] hover:bg-brand-light transition-colors cursor-pointer"
           >
-            Get started
+            Add to your agent
             <ChevronRight size={15} />
           </button>
         </div>
