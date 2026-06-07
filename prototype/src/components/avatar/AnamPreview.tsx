@@ -25,6 +25,8 @@ interface AnamPreviewProps {
   /** Called when greeting finishes (endOfSpeech). */
   onGreetingDone?: () => void
   micEnabled?: boolean
+  /** Mute the avatar's audio output (video element muted). Default false. */
+  outputMuted?: boolean
   /** Override which Anam avatar to stream. Falls back to VITE_ANAM_PERSONA_ID. */
   avatarId?: string
   systemPrompt?: string
@@ -39,6 +41,7 @@ export function AnamPreview({
   stopAfterGreeting = false,
   onGreetingDone,
   micEnabled = true,
+  outputMuted = false,
   avatarId,
   systemPrompt,
   onReady,
@@ -135,7 +138,7 @@ export function AnamPreview({
 
   return (
     <div className={`relative overflow-hidden aspect-video ${className}`} style={{ backgroundImage: `url(${COVER})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-      <video id={videoId} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
+      <video id={videoId} autoPlay playsInline muted={outputMuted} className="absolute inset-0 w-full h-full object-cover" />
 
       {/* Cover image — shown while connecting and after greeting ends */}
       <div className={`absolute inset-0 transition-opacity duration-500 ${showCover ? 'opacity-100' : 'opacity-0'}`}>

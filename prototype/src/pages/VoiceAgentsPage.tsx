@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, ChevronRight, Plus, GitBranch, Check } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { FloatingAvatarWidget } from '../components/discovery/FloatingAvatarWidget'
 
 /* Search glyph — exact Figma path (56:180), filled not stroked. */
 function SearchIcon({ size = 16, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) {
@@ -92,13 +93,14 @@ function AgentRow({ agent, onClick }: { agent: Agent; onClick?: (id: string) => 
           )}
         </div>
 
-        {/* Col 3 — status */}
-        <div className="w-[110px] shrink-0 flex items-center gap-1.5">
-          <StatusDot color={STATUS_DOT[agent.status]} size={8} />
-          <span className="text-[12.5px] font-[500] text-neutral-600">{STATUS_LABEL[agent.status]}</span>
+        {/* Col 3 — status + chevron, fixed width so chevron always sits 20px after longest label */}
+        <div className="shrink-0 flex items-center gap-5 w-[152px]">
+          <div className="flex items-center gap-1.5">
+            <StatusDot color={STATUS_DOT[agent.status]} size={8} />
+            <span className="text-[12.5px] font-[500] text-neutral-600">{STATUS_LABEL[agent.status]}</span>
+          </div>
+          <ChevronRight size={15} className="shrink-0 text-neutral-600 ml-auto" strokeWidth={1.5} />
         </div>
-
-        <ChevronRight size={15} className="shrink-0 text-neutral-600" strokeWidth={1.5} />
       </div>
     </a>
   )
@@ -172,7 +174,7 @@ function StatusFilterDropdown({ value, onChange }: { value: StatusKey; onChange:
   )
 }
 
-export function VoiceAgentsPage({ onOpenAgent, onStartAvatar }: { onOpenAgent?: (id: string) => void; onStartAvatar?: () => void }) {
+export function VoiceAgentsPage({ onOpenAgent, onStartAvatar, modalOpen }: { onOpenAgent?: (id: string) => void; onStartAvatar?: () => void; modalOpen?: boolean }) {
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<StatusKey>('all')
 
@@ -182,6 +184,8 @@ export function VoiceAgentsPage({ onOpenAgent, onStartAvatar }: { onOpenAgent?: 
   )
 
   return (
+    <>
+    <FloatingAvatarWidget onOpenModal={() => onStartAvatar?.()} hidden={modalOpen} />
     <div className="flex flex-col gap-4 max-w-[1088px]">
 
       {/* Header row */}
@@ -249,5 +253,6 @@ export function VoiceAgentsPage({ onOpenAgent, onStartAvatar }: { onOpenAgent?: 
         )}
       </div>
     </div>
+    </>
   )
 }

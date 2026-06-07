@@ -80,6 +80,7 @@ function AppShell() {
             <VoiceAgentsPage
               onOpenAgent={(id) => navigate(`/agents/${id}`)}
               onStartAvatar={() => setModalOpen(true)}
+              modalOpen={modalOpen}
             />
           } />
           <Route path="/agents/:id" element={
