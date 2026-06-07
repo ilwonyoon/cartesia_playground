@@ -5,6 +5,7 @@ description = "Playground for experimenting with the Cartesia API (TTS/STT/voice
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "cartesia-line>=0.2.13",
     "cartesia[websockets]>=3.0.2",
     "python-dotenv>=1.2.2",
 ]
