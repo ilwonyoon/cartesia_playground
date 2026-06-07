@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Plus, GitBranch } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, GitBranch, Sparkles } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 /* Search glyph — exact Figma path (56:180), filled not stroked. */
@@ -11,8 +11,6 @@ function SearchIcon({ size = 16, ...props }: React.SVGProps<SVGSVGElement> & { s
   )
 }
 
-/* ── Status filter chips ──────────────────────────────────────
-   Figma 56:194 — colored dots are OS status signals (not brand green). */
 type StatusKey = 'all' | 'deployed' | 'deploying' | 'failed' | 'not_deployed'
 
 const STATUS_DOT: Record<Exclude<StatusKey, 'all'>, string> = {
@@ -30,20 +28,15 @@ const FILTERS: { key: StatusKey; label: string }[] = [
   { key: 'not_deployed', label: 'Not deployed' },
 ]
 
-/* A single status dot with the white ring overlay (Figma Overlay+Shadow). */
 function StatusDot({ color, size = 10 }: { color: string; size?: number }) {
   return (
-    <span
-      className="relative inline-block rounded-full shrink-0"
-      style={{ width: size, height: size }}
-    >
+    <span className="relative inline-block rounded-full shrink-0" style={{ width: size, height: size }}>
       <span className="absolute inset-0 rounded-full shadow-[0px_0px_0px_1px_white]" />
       <span className="block w-full h-full rounded-full" style={{ backgroundColor: color }} />
     </span>
   )
 }
 
-/* ── Agent list row (Figma 56:238 / 56:563) ────────────────── */
 type Agent = {
   name: string
   status: 'Deployed'
@@ -59,8 +52,7 @@ const AGENTS: Agent[] = [
 
 function AgentRow({ agent, onClick }: { agent: Agent; onClick?: (id: string) => void }) {
   return (
-    <a onClick={() => onClick?.(agent.name)} className="flex items-center gap-3 px-[23px] py-3.5 rounded-2xl cursor-pointer border border-transparent hover:bg-[#f1f0ed] transition-colors">
-      {/* Name + meta — status shown as a dot before the title */}
+    <a onClick={() => onClick?.(agent.name)} className="group flex items-center gap-3 px-[23px] py-3.5 rounded-2xl cursor-pointer border border-transparent hover:bg-[#f1f0ed] transition-colors">
       <div className="flex-1 min-w-0 flex flex-col gap-1">
         <div className="flex items-center gap-2 min-w-0">
           <p className="text-[14px] font-[500] text-neutral-900 leading-[20px] truncate">{agent.name}</p>
@@ -78,96 +70,102 @@ function AgentRow({ agent, onClick }: { agent: Agent; onClick?: (id: string) => 
           </div>
         )}
       </div>
-
-      {/* Right: chevron */}
       <ChevronRight size={16} className="shrink-0 text-neutral-600" strokeWidth={1.33} />
     </a>
   )
 }
 
-export function VoiceAgentsPage({ onOpenAgent }: { onOpenAgent?: (id: string) => void }) {
+export function VoiceAgentsPage({ onOpenAgent, onStartAvatar }: { onOpenAgent?: (id: string) => void; onStartAvatar?: () => void }) {
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<StatusKey>('all')
 
   return (
     <div className="flex flex-col gap-4 max-w-[1088px]">
 
-      {/* Header row — title left, split button right (Figma 56:164) */}
+      {/* Header row */}
       <div className="flex items-start justify-between h-9">
-        <h1 className="text-[24px] font-[500] text-neutral-900 leading-[32px] font-serif">Voice Agents</h1>
-        <div className="flex items-start pt-1">
-          <div className="flex gap-px p-px">
-            <button className="h-[30px] pl-2.5 pr-2.5 bg-brand text-white text-[13.1px] font-[500] rounded-l-[7.2px] flex items-center gap-1.5 hover:bg-brand-light transition-colors cursor-pointer whitespace-nowrap">
-              <Plus size={16} strokeWidth={2.2} />
-              Create voice agent
-            </button>
-            <button className="h-[30px] w-[31px] bg-brand text-white rounded-r-[7.2px] flex items-center justify-center hover:bg-brand-light transition-colors cursor-pointer">
-              <ChevronDown size={16} strokeWidth={1.33} />
-            </button>
-          </div>
+        <div className="flex items-center gap-3">
+          <h1 className="text-[24px] font-[500] text-neutral-900 leading-[32px] font-serif">Voice Agents</h1>
+          {/* Discovery — promo pill beside title */}
+          <button
+            onClick={() => onStartAvatar?.()}
+            className="group inline-flex items-center gap-2 h-7 pl-1 pr-2.5 rounded-full border border-neutral-300 bg-white hover:border-neutral-400 transition-colors cursor-pointer"
+          >
+            <span className="inline-flex items-center h-5 px-2 rounded-full bg-neutral-900 text-white text-[11px] font-[500] leading-none">
+              New
+            </span>
+            <span className="text-[13px] font-[500] text-neutral-700 whitespace-nowrap">Give your agent a face</span>
+            <Sparkles size={12} className="text-neutral-400 group-hover:text-brand transition-colors" />
+          </button>
+        </div>
+        {/* Create voice agent — primary split button */}
+        <div className="flex gap-px p-px pt-1">
+          <button className="h-[30px] pl-2.5 pr-2.5 bg-brand text-white text-[13.1px] font-[500] rounded-l-[7.2px] flex items-center gap-1.5 hover:bg-brand-light transition-colors cursor-pointer whitespace-nowrap">
+            <Plus size={16} strokeWidth={2.2} />
+            Create voice agent
+          </button>
+          <button className="h-[30px] w-[31px] bg-brand text-white rounded-r-[7.2px] flex items-center justify-center hover:bg-brand-light transition-colors cursor-pointer">
+            <ChevronDown size={16} strokeWidth={1.33} />
+          </button>
         </div>
       </div>
 
-      {/* Card container (Figma 56:176) */}
-      <div className="bg-neutral-50 border border-neutral-400 rounded-[10px] overflow-hidden shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] pb-[9px]">
+      {/* Search bar — standalone, outside the card */}
+      <div className="flex items-center h-[38px] rounded-[8px] border border-neutral-400 bg-white px-px shadow-[--shadow-sm]">
+        <span className="flex items-center justify-center pl-3 py-1.5">
+          <SearchIcon size={15} className="text-neutral-500" />
+        </span>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name or agent id…"
+          className="flex-1 min-w-0 h-9 px-2 bg-transparent text-[13px] text-neutral-900 placeholder:text-neutral-500 outline-none"
+        />
+        <span className="flex items-center gap-1 pr-3 py-1.5">
+          <kbd className="h-5 min-w-5 px-1 rounded-[4px] bg-neutral-100 border border-neutral-300 flex items-center justify-center text-[11px] text-neutral-500 leading-4 font-sans">⌘</kbd>
+          <kbd className="h-5 min-w-5 px-1.5 rounded-[4px] bg-neutral-100 border border-neutral-300 flex items-center justify-center text-[11px] text-neutral-500 leading-4 font-sans">F</kbd>
+        </span>
+      </div>
 
-        {/* Search bar row (Figma 56:177) */}
-        <div className="bg-[#f1f0ec]/25 border-b border-neutral-400 px-6 pt-[7px] pb-2">
-          <div className="flex items-center h-[34px] rounded-[7.2px] border border-neutral-400 bg-neutral-100 px-px">
-            <span className="flex items-center justify-center pl-2 py-1.5">
-              <SearchIcon size={16} className="text-neutral-600" />
-            </span>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name or agent id…"
-              className="flex-1 min-w-0 h-8 px-1.5 bg-transparent text-[12.9px] text-neutral-900 placeholder:text-neutral-600 outline-none"
-            />
-            <span className="flex items-center gap-1 pr-2 py-1.5">
-              <kbd className="h-5 min-w-5 px-1 rounded-[4.32px] bg-neutral-300 flex items-center justify-center text-[12px] text-neutral-600 leading-4 font-sans">⌘</kbd>
-              <kbd className="h-5 min-w-5 px-1.5 rounded-[4.32px] bg-neutral-300 flex items-center justify-center text-[12px] text-neutral-600 leading-4 font-sans">F</kbd>
-            </span>
-          </div>
+      {/* Filter row — subtle, text-only style */}
+      <div className="flex items-center justify-between -mt-1">
+        <div className="flex items-center gap-1">
+          {FILTERS.map(f => {
+            const isActive = activeFilter === f.key
+            return (
+              <button
+                key={f.key}
+                onClick={() => setActiveFilter(f.key)}
+                className={cn(
+                  'h-7 px-2.5 flex items-center gap-1.5 rounded-[6px] text-[12px] font-[500] cursor-pointer transition-colors whitespace-nowrap',
+                  isActive
+                    ? 'bg-neutral-200/80 text-neutral-900'
+                    : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/50',
+                )}
+              >
+                {f.key === 'all' ? (
+                  <span className="flex items-center gap-px">
+                    <StatusDot color="#00c950" size={7} />
+                    <StatusDot color="#fdc700" size={7} />
+                    <StatusDot color="#ff6467" size={7} />
+                    <StatusDot color="#a1a1a1" size={7} />
+                  </span>
+                ) : (
+                  <StatusDot color={STATUS_DOT[f.key as Exclude<StatusKey, 'all'>]} size={7} />
+                )}
+                {f.label}
+              </button>
+            )
+          })}
         </div>
+        <span className="text-[11.5px] text-neutral-400">
+          {AGENTS.length}/{AGENTS.length} agents
+        </span>
+      </div>
 
-        {/* Filter chips row (Figma 56:192) */}
-        <div className="border-b border-neutral-400 flex items-center justify-between px-6 pt-2 pb-[9px]">
-          <div className="flex items-center gap-2.5 flex-1 min-w-0 overflow-x-auto">
-            {FILTERS.map(f => {
-              const isActive = activeFilter === f.key
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setActiveFilter(f.key)}
-                  className={cn(
-                    'h-8 px-3 flex items-center gap-2 rounded-full whitespace-nowrap shrink-0 text-[12px] font-[500] cursor-pointer transition-colors',
-                    isActive
-                      ? 'bg-[#f5f5f5] border border-[#d4d4d4] text-neutral-700'
-                      : 'border border-neutral-300 text-neutral-600 hover:bg-neutral-100',
-                  )}
-                >
-                  {f.key === 'all' ? (
-                    <span className="flex items-center gap-0.5">
-                      <StatusDot color="#00c950" />
-                      <StatusDot color="#fdc700" />
-                      <StatusDot color="#ff6467" />
-                      <StatusDot color="#a1a1a1" />
-                    </span>
-                  ) : (
-                    <StatusDot color={STATUS_DOT[f.key as Exclude<StatusKey, 'all'>]} />
-                  )}
-                  {f.label}
-                </button>
-              )
-            })}
-          </div>
-          <span className="text-[11.3px] text-neutral-600 whitespace-nowrap pl-3">
-            {AGENTS.length}/{AGENTS.length} agents
-          </span>
-        </div>
-
-        {/* Agent list (Figma 56:237 / 56:562) */}
-        <div className="px-px pt-2 flex flex-col">
+      {/* Card — agent list only */}
+      <div className="bg-white border border-neutral-400 rounded-[14px] overflow-hidden shadow-[0px_1px_3px_0px_rgba(0,0,0,0.08),0px_1px_2px_-1px_rgba(0,0,0,0.06)] -mt-1">
+        <div className="flex flex-col">
           {AGENTS
             .filter(a => a.name.toLowerCase().includes(search.toLowerCase()))
             .map((agent, i) => (
