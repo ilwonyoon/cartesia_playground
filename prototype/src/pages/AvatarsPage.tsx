@@ -214,7 +214,7 @@ function UploadAvatarTab() {
 
 export function AvatarsPage({ initialTab }: { initialTab?: 'library' | 'upload' }) {
   const [industry, setIndustry] = useState<Industry>('All')
-  const [tab] = useState<'library' | 'upload'>(initialTab ?? 'library')
+  const tab = initialTab ?? 'library'
   const navigate = useNavigate()
 
   const filtered = industry === 'All' ? AVATARS : AVATARS.filter(a => a.industry === industry)

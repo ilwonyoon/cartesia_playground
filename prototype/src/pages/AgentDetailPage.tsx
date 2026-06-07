@@ -246,7 +246,7 @@ function useDuration(active: boolean) {
 
 function PreviewPanel({ onClose }: { onClose: () => void }) {
   const [mode, setMode] = useState<PreviewMode>('Voice only')
-  const { callState, talkState, error, startCall, endCall, toggleMute, muted } = useVoiceAgent()
+  const { callState, talkState, agentAmplitude, userAmplitude, error, startCall, endCall, toggleMute, muted } = useVoiceAgent()
   const duration = useDuration(callState === 'active')
 
   const isActive = callState === 'active'
@@ -311,7 +311,7 @@ function PreviewPanel({ onClose }: { onClose: () => void }) {
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] font-[600] text-[rgba(57,52,47,0.8)] tracking-[0.25px]">Agent</span>
               </div>
-              <Waveform amplitude={0} active={talkState === 'speaking'} variant="agent" />
+              <Waveform amplitude={agentAmplitude} active={talkState === 'speaking'} variant="agent" />
             </div>
 
             {/* You waveform row */}
@@ -319,7 +319,7 @@ function PreviewPanel({ onClose }: { onClose: () => void }) {
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] font-[600] text-[rgba(57,52,47,0.8)] tracking-[0.25px]">You</span>
               </div>
-              <Waveform amplitude={0} active={!muted} variant="user" />
+              <Waveform amplitude={userAmplitude} active={!muted} variant="user" />
             </div>
 
             {/* Status bar — Figma bottom strip */}
