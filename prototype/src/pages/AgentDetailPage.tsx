@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   ChevronRight, ChevronDown, Phone, GitBranch,
-  ExternalLink, MoreVertical, Maximize2, X, Wrench,
-  Settings2, Paperclip, ArrowUp,
+  ExternalLink, MoreVertical, X,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { AgentConfigurationTab } from './AgentConfigurationTab'
+import { useVoiceAgent } from '../hooks/useVoiceAgent'
 
 /* ── Agent detail (Figma 56:1715 / structural ref 77:550) ─────────────
    Re-architected into the ElevenLabs-style 2-zone shell:
@@ -115,29 +115,154 @@ function VersionRow({ version, last }: { version: Version; last?: boolean }) {
   )
 }
 
-/* ── Right-side preview/test panel (Figma 77:550 docked widget) ──────
-   Docks full-height on the right. Inline|Widget segment + Mock tools
-   toggle in its header, a chat-widget placeholder body, message composer
-   at the bottom. Send button on brand green. */
-type PreviewMode = 'Inline' | 'Widget'
+type PreviewMode = 'Voice only' | 'with Face'
+
+/* Scrolling history waveform — Figma spec: 4px bar, 4px gap, 48px tall, gradient fill */
+function Waveform({ amplitude, active = true, variant = 'agent' }: {
+  amplitude: number; active?: boolean; variant?: 'agent' | 'user'
+}) {
+  const BAR_W = 4
+  const PITCH = 8
+  const H = 48
+  const MS_PER_BAR = 190
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const historyRef = useRef<number[]>([])
+  const rafRef = useRef<number>(0)
+  const lastTickRef = useRef(0)
+  const barsRef = useRef(52)
+  // Use refs for live values so the RAF closure always reads the latest
+  const amplitudeRef = useRef(amplitude)
+  const activeRef = useRef(active)
+  useEffect(() => { amplitudeRef.current = amplitude }, [amplitude])
+  useEffect(() => { activeRef.current = active }, [active])
+
+  // Figma gradient stops (bottom→top = stop 0→1 in createLinearGradient(0,y+h,0,y))
+  // Agent: #40A93C 22% → #40A93C 55% → #3A9438 100%
+  // User:  #00598A 22% → #0084D1 55% → #00A6F4 100%
+  const colors = variant === 'agent'
+    ? { s0: 'rgba(64,169,60,0.22)', s1: 'rgba(64,169,60,0.55)', s2: '#3A9438', silent: 'rgba(64,169,60,0.22)' }
+    : { s0: 'rgba(0,89,138,0.22)',  s1: 'rgba(0,132,209,0.55)', s2: '#00A6F4', silent: 'rgba(0,132,209,0.18)' }
+
+  // Resize: recalculate bar count from container width
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => {
+      const w = Math.floor(entry.contentRect.width)
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const bars = Math.max(1, Math.floor(w / PITCH))
+      barsRef.current = bars
+      canvas.width = w
+      canvas.height = H
+      while (historyRef.current.length > bars) historyRef.current.shift()
+      while (historyRef.current.length < bars) historyRef.current.unshift(0)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // Single persistent RAF loop — reads live values from refs, never restarts
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const draw = (now: number) => {
+      if (now - lastTickRef.current > MS_PER_BAR) {
+        lastTickRef.current = now
+        const amp = activeRef.current ? amplitudeRef.current : 0
+        historyRef.current.push(amp)
+        while (historyRef.current.length > barsRef.current) historyRef.current.shift()
+      }
+
+      const W = canvas.width
+      ctx.clearRect(0, 0, W, H)
+      const midY = H / 2
+
+      historyRef.current.forEach((s, i) => {
+        const barH = s > 0.01 ? Math.min(44, Math.max(4, s * 44)) : 4
+        const x = i * PITCH
+        const y = midY - barH / 2
+
+        if (s > 0.01) {
+          // bottom→top gradient: stop 0 at bottom (y+barH), stop 1 at top (y)
+          const grad = ctx.createLinearGradient(0, y + barH, 0, y)
+          grad.addColorStop(0, colors.s0)
+          grad.addColorStop(0.5, colors.s1)
+          grad.addColorStop(1, colors.s2)
+          ctx.fillStyle = grad
+        } else {
+          ctx.fillStyle = colors.silent
+        }
+        ctx.beginPath()
+        ctx.roundRect(x, y, BAR_W, barH, 2)
+        ctx.fill()
+      })
+
+      rafRef.current = requestAnimationFrame(draw)
+    }
+
+    rafRef.current = requestAnimationFrame(draw)
+    return () => cancelAnimationFrame(rafRef.current)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])  // intentionally empty — reads live data via refs
+
+  return (
+    <div ref={containerRef} className="w-full overflow-hidden">
+      <canvas ref={canvasRef} height={H} style={{ display: 'block', width: '100%' }} />
+    </div>
+  )
+}
+
+function MicIcon({ muted, size = 20 }: { muted: boolean; size?: number }) {
+  return muted ? (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <path d="M3 3L17 17M10 2a3 3 0 013 3v3l-8-8a3 3 0 015-5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M7 7v3a3 3 0 005.23 2.02M5.27 9A5 5 0 0015 9M10 17v2M7 19h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ) : (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <rect x="7" y="1" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M4 9a6 6 0 0012 0M10 17v2M7 19h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+function useDuration(active: boolean) {
+  const [secs, setSecs] = useState(0)
+  useEffect(() => {
+    if (!active) { setSecs(0); return }
+    const id = setInterval(() => setSecs(s => s + 1), 1000)
+    return () => clearInterval(id)
+  }, [active])
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
 
 function PreviewPanel({ onClose }: { onClose: () => void }) {
-  const [mode, setMode] = useState<PreviewMode>('Widget')
-  const [mockTools, setMockTools] = useState(false)
-  const [draft, setDraft] = useState('')
+  const [mode, setMode] = useState<PreviewMode>('Voice only')
+  const { callState, talkState, agentAmplitude, userAmplitude, error, startCall, endCall, toggleMute, muted } = useVoiceAgent()
+  const duration = useDuration(callState === 'active')
+
+  const isActive = callState === 'active'
+  const isConnecting = callState === 'connecting'
 
   return (
     <aside className="w-[400px] shrink-0 flex flex-col h-full border-l border-neutral-400 bg-white">
-      {/* Panel toolbar — Inline|Widget · Mock tools · expand · close */}
-      <div className="min-h-[48px] flex items-center justify-between gap-2 px-4 border-b border-neutral-400">
-        {/* Inline | Widget segmented control */}
+      {/* Panel toolbar */}
+      <div className="h-[48px] flex items-center justify-between gap-2 px-3 border-b border-neutral-400">
         <div className="flex items-center p-0.5 rounded-[7.2px] bg-neutral-200">
-          {(['Inline', 'Widget'] as const).map(m => (
+          {(['Voice only', 'with Face'] as const).map(m => (
             <button
               key={m}
               onClick={() => setMode(m)}
               className={cn(
-                'h-[26px] px-3 rounded-[5.76px] text-[12.5px] font-[500] leading-5 cursor-pointer transition-colors',
+                'h-[26px] px-3 rounded-[5.76px] text-[12.5px] font-[500] leading-5 cursor-pointer transition-colors whitespace-nowrap',
                 mode === m ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700',
               )}
             >
@@ -145,67 +270,122 @@ function PreviewPanel({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
-
-        {/* Mock tools toggle + expand + close */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setMockTools(v => !v)}
-            className="h-[26px] px-2 flex items-center gap-1.5 rounded-[5.76px] hover:bg-neutral-200 cursor-pointer"
-          >
-            <Wrench size={14} strokeWidth={1.5} className="text-neutral-600" />
-            <span className="text-[12.5px] font-[500] text-neutral-900 leading-5">Mock tools</span>
-            <span className={cn('text-[11.5px] font-[500] leading-4', mockTools ? 'text-brand' : 'text-neutral-500')}>
-              {mockTools ? 'On' : 'Off'}
-            </span>
-          </button>
-          <button className="w-7 h-7 flex items-center justify-center rounded-[5.76px] hover:bg-neutral-200 cursor-pointer">
-            <Maximize2 size={15} strokeWidth={1.5} className="text-neutral-600" />
-          </button>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-[5.76px] hover:bg-neutral-200 cursor-pointer"
-          >
-            <X size={16} strokeWidth={1.5} className="text-neutral-600" />
-          </button>
-        </div>
+        <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-[5.76px] hover:bg-neutral-200 cursor-pointer">
+          <X size={16} strokeWidth={1.5} className="text-neutral-600" />
+        </button>
       </div>
 
-      {/* Widget body — empty chat surface */}
-      <div className="flex-1 overflow-auto bg-neutral-100 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 px-8 text-center">
-          <span className="w-12 h-12 rounded-full bg-brand-tint flex items-center justify-center">
-            <Phone size={20} strokeWidth={0} fill="currentColor" className="text-brand" />
-          </span>
-          <p className="text-[13px] font-[500] text-neutral-900 leading-5">Test your agent</p>
-          <p className="text-[12px] text-neutral-500 leading-4 max-w-[220px]">
-            Send a message or start a call to preview {AGENT.name} in {mode.toLowerCase()} mode.
-          </p>
-        </div>
-      </div>
+      {isActive ? (
+        <>
+          <div className="flex-1 flex flex-col bg-neutral-100 overflow-hidden">
 
-      {/* Composer */}
-      <div className="p-3 border-t border-neutral-400 bg-white">
-        <div className="flex items-end gap-2 rounded-[10px] border border-neutral-400 bg-neutral-100 px-3 py-2 focus-within:border-neutral-600">
-          <button className="w-6 h-6 flex items-center justify-center rounded-[5.76px] hover:bg-neutral-200 cursor-pointer shrink-0">
-            <Settings2 size={16} strokeWidth={1.5} className="text-neutral-600" />
-          </button>
-          <button className="w-6 h-6 flex items-center justify-center rounded-[5.76px] hover:bg-neutral-200 cursor-pointer shrink-0">
-            <Paperclip size={16} strokeWidth={1.5} className="text-neutral-600" />
-          </button>
-          <input
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            placeholder="Send a message to start a chat"
-            className="flex-1 min-w-0 bg-transparent text-[13px] text-neutral-900 placeholder:text-neutral-500 outline-none leading-6"
-          />
-          <button
-            disabled={!draft.trim()}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-brand text-white hover:bg-brand-light transition-colors cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <ArrowUp size={16} strokeWidth={2} />
-          </button>
+            {/* Header: agent name + Live call */}
+            <div className="flex items-center justify-between gap-3 px-4 pt-5 pb-2">
+              <div className="flex flex-col gap-0.5">
+                <p className="text-[13.7px] font-[600] text-[#39342f] tracking-[-0.375px] leading-5">{AGENT.name}</p>
+                <p className="text-[11.3px] text-[#636260] leading-4">Live call</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Mute button — Figma size 40px */}
+                <button
+                  onClick={toggleMute}
+                  className={cn(
+                    'w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer shadow-[0px_0px_0px_1px_rgba(10,10,10,0.08),0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]',
+                    muted ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700',
+                  )}
+                >
+                  <MicIcon muted={muted} size={18} />
+                </button>
+                {/* End call button */}
+                <button
+                  onClick={endCall}
+                  className="w-10 h-10 rounded-full bg-[#fb2c36] flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer shadow-[0px_0px_0px_1px_rgba(193,0,7,0.2),0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+                >
+                  <Phone size={16} strokeWidth={0} fill="white" className="rotate-[135deg]" />
+                </button>
+              </div>
+            </div>
+
+            {/* Agent waveform row */}
+            <div className="px-4 pt-2 pb-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-[600] text-[rgba(57,52,47,0.8)] tracking-[0.25px]">Agent</span>
+              </div>
+              <Waveform amplitude={agentAmplitude} active={talkState === 'speaking'} variant="agent" />
+            </div>
+
+            {/* You waveform row */}
+            <div className="px-4 pt-3 pb-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-[600] text-[rgba(57,52,47,0.8)] tracking-[0.25px]">You</span>
+              </div>
+              <Waveform amplitude={muted ? 0 : userAmplitude} active={!muted} variant="user" />
+            </div>
+
+            {/* Status bar — Figma bottom strip */}
+            <div className="mt-auto px-4 py-3 flex items-center justify-between border-t border-neutral-300/60">
+              <div className="flex items-center gap-2">
+                {/* Agent speaking indicator */}
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{
+                      background: '#00d492',
+                      boxShadow: talkState === 'speaking' ? '0 0 8px rgba(52,211,153,0.6)' : 'none',
+                      opacity: talkState === 'speaking' ? 1 : 0.35,
+                    }}
+                  />
+                  <span className="text-[11px] text-[#636260]">Agent speaking</span>
+                </div>
+                <span className="text-[11px] text-[rgba(99,98,96,0.7)]">•</span>
+                {/* Mic connected indicator */}
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{
+                      background: '#00a6f4',
+                      boxShadow: !muted ? '0 0 6px rgba(14,165,233,0.5)' : 'none',
+                      opacity: muted ? 0.35 : 1,
+                    }}
+                  />
+                  <span className="text-[11px] text-[#636260]">{muted ? 'Mic muted' : 'Mic connected'}</span>
+                </div>
+              </div>
+              {/* Duration */}
+              <span className="text-[11px] text-[#636260] tabular-nums">{duration}</span>
+            </div>
+
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 bg-neutral-100 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4 px-8 text-center">
+            {error && (
+              <p className="text-[12px] text-danger leading-4 max-w-[220px]">{error}</p>
+            )}
+            <button
+              onClick={startCall}
+              disabled={isConnecting}
+              className="w-14 h-14 rounded-full bg-brand hover:bg-brand-light transition-colors flex items-center justify-center shadow-[0px_4px_14px_rgba(0,77,34,0.35)] cursor-pointer disabled:opacity-50"
+            >
+              {isConnecting
+                ? <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : <Phone size={22} strokeWidth={0} fill="white" />
+              }
+            </button>
+            <div className="flex flex-col gap-1">
+              <p className="text-[13px] font-[500] text-neutral-900 leading-5">
+                {isConnecting ? 'Connecting…' : 'Test your agent'}
+              </p>
+              {!isConnecting && (
+                <p className="text-[12px] text-neutral-500 leading-4 max-w-[200px]">
+                  Start a call to preview {AGENT.name} in {mode} mode.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   )
 }
@@ -266,7 +446,7 @@ function CallButton({ hasNumber }: { inProgress: boolean; onToggle: () => void; 
 
 export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
   const [activeTab, setActiveTab] = useState<Tab>('Deployment')
-  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(true)
   /* Toggle to simulate no-number vs provisioned state. */
   const hasPhoneNumber = false
   const hasDraft = true
