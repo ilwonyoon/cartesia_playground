@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   ChevronRight, ChevronDown, Phone, GitBranch,
   ExternalLink, MoreVertical, X, Globe, Hash, AlertCircle,
+  Maximize2, Minimize2, Play,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { AgentConfigurationTab } from './AgentConfigurationTab'
@@ -9,6 +10,7 @@ import { useVoiceAgent } from '../hooks/useVoiceAgent'
 import { AnamPreview } from '../components/avatar/AnamPreview'
 import { CodeBlock, type CodeLang } from '../components/ui/CodeBlock'
 import type { Avatar } from '../data/avatars'
+import { DEFAULT_SYSTEM_PROMPT, DEFAULT_INITIAL_MESSAGE } from './AgentConfigurationTab'
 
 /* ── Agent detail (Figma 56:1715 / structural ref 77:550) ─────────────
    Re-architected into the ElevenLabs-style 2-zone shell:
@@ -248,58 +250,188 @@ function useDuration(active: boolean) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-/* Web preview — the embeddable widget as a visitor meets it: a floating card
-   that, on click, opens into a live face conversation (mic on). Mirrors the
-   FloatingAvatarWidget → OnboardingModal flow, scaled into the panel. */
-function WebPreview() {
-  const [open, setOpen] = useState(false)
+/* Chat row — agent: label + plain text (no bubble), user: label + rounded bubble */
+function ChatRow({ role, content }: { role: 'agent' | 'user'; content: string }) {
+  const isUser = role === 'user'
+  return (
+    <div className={cn('px-4 flex flex-col gap-0.5', isUser ? 'items-end' : 'items-start')}>
+      <span className="text-[10.5px] font-[500] text-white/35 px-0.5">
+        {isUser ? 'You' : 'Agent'}
+      </span>
+      {isUser ? (
+        <div className="max-w-[80%] px-3 py-2 rounded-[14px] rounded-tr-[4px] bg-white/15 text-white text-[13px] leading-[1.45]">
+          {content}
+        </div>
+      ) : (
+        <p className="max-w-[90%] text-white/85 text-[13px] leading-[1.5]">{content}</p>
+      )}
+    </div>
+  )
+}
 
-  if (!open) {
+/* Web preview — 3 states:
+   1. idle: floating poster card bottom-right with Play button
+   2. playing: same floating card + Anam live + expand icon top-right of card
+   3. expanded: fullscreen avatar top (16:9) + chat thread bottom */
+function WebPreview({ avatar, onPickAvatar, agentSystemPrompt }: {
+  avatar: Avatar | null
+  onPickAvatar: () => void
+  agentSystemPrompt: string
+}) {
+  type WidgetState = 'idle' | 'playing' | 'expanded'
+  const [widgetState, setWidgetState] = useState<WidgetState>('idle')
+  // armed drives the single AnamPreview — false until user clicks Play
+  const [armed, setArmed] = useState(false)
+  const { messages } = useVoiceAgent()
+  const chatRef = useRef<HTMLDivElement>(null)
+
+  // Use the agent's Initial Message from Configuration (same as AvatarPickerModal uses initialMessage)
+  const greeting = DEFAULT_INITIAL_MESSAGE
+
+  useEffect(() => {
+    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
+  }, [messages])
+
+  const handlePlay = useCallback(() => {
+    setArmed(true)
+    setWidgetState('playing')
+  }, [])
+
+  const handleEnd = useCallback(() => {
+    setArmed(false)
+    setWidgetState('idle')
+  }, [])
+
+  if (!avatar) {
     return (
-      <div className="flex-1 bg-neutral-100 relative overflow-hidden">
-        {/* Faux site backdrop so the floating widget reads as an embed */}
-        <div className="absolute inset-0 p-5 flex flex-col gap-2.5 opacity-50 select-none pointer-events-none">
-          <div className="h-3 w-1/2 rounded bg-neutral-300" />
-          <div className="h-2.5 w-3/4 rounded bg-neutral-300" />
-          <div className="h-2.5 w-2/3 rounded bg-neutral-300" />
-          <div className="mt-3 h-24 w-full rounded-[10px] bg-neutral-200" />
-          <div className="h-2.5 w-1/2 rounded bg-neutral-300" />
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-5 text-center relative z-10">
+        <div className="flex flex-col gap-1 max-w-[240px]">
+          <p className="text-[13.5px] font-[500] text-neutral-900 leading-5">No avatar yet</p>
+          <p className="text-[12.5px] text-neutral-500 leading-[1.5]">
+            Pick an avatar in Configuration to preview the widget.
+          </p>
         </div>
-
-        {/* Floating widget — bottom-right, same shape as the live one */}
-        <div className="absolute bottom-4 right-4" style={{ width: 132 }}>
-          <div
-            onClick={() => setOpen(true)}
-            className="block w-full rounded-[18px] overflow-hidden cursor-pointer shadow-[0px_4px_8px_rgba(0,0,0,0.08),0px_14px_14px_rgba(0,0,0,0.07)] transition-transform hover:scale-[1.02]"
-          >
-            <AnamPreview
-              greeting={undefined}
-              manualStart
-              posterUrl="/avatars/sophie_sofa.png"
-              showCoverArt={false}
-              className="!aspect-[3/4] rounded-none"
-            />
-          </div>
-          <p className="mt-2 text-[11px] text-neutral-500 leading-4 text-center">Click to talk</p>
-        </div>
+        <button
+          onClick={onPickAvatar}
+          className="mt-1 h-[30px] px-3.5 rounded-[7.2px] bg-brand text-white text-[13px] font-[500] hover:bg-brand-light cursor-pointer transition-colors"
+        >
+          Select an avatar
+        </button>
       </div>
     )
   }
 
+  const isIdle = widgetState === 'idle'
+  const isExpanded = widgetState === 'expanded'
+  const isPlaying = widgetState === 'playing'
+
   return (
-    <div className="flex-1 bg-neutral-900 flex flex-col">
-      <AnamPreview
-        greeting="Hey! I'm your agent — now with a face. Ask me anything."
-        micEnabled
-        showCoverArt={false}
-        className="flex-1 !aspect-auto"
-      />
-      <button
-        onClick={() => setOpen(false)}
-        className="shrink-0 h-11 flex items-center justify-center gap-2 bg-neutral-900 text-white/70 text-[12.5px] font-[500] hover:text-white border-t border-white/10 cursor-pointer transition-colors"
+    <div className={cn('flex-1 relative z-10 overflow-hidden', isExpanded && 'bg-neutral-900 flex flex-col')}>
+
+      {/* Chat thread — only visible in expanded state */}
+      <div
+        ref={chatRef}
+        className={cn('flex-1 overflow-y-auto py-3 flex flex-col gap-3 min-h-0', !isExpanded && 'hidden')}
       >
-        <X size={14} strokeWidth={1.6} /> End preview
-      </button>
+        {messages.length === 0 ? (
+          <p className="text-[11.5px] text-white/30 text-center px-4 mt-2">Conversation will appear here…</p>
+        ) : (
+          messages.map(m => <ChatRow key={m.id} role={m.role} content={m.content} />)
+        )}
+      </div>
+
+      {/* Avatar container — same DOM node for all states, only style changes */}
+      <div
+        className={cn('shrink-0', isExpanded ? 'relative w-full' : 'absolute')}
+        style={isExpanded
+          ? { aspectRatio: '16/9' }
+          : { bottom: 16, right: 16, width: 120, aspectRatio: '3/4', borderRadius: 16, overflow: 'hidden', boxShadow: '0px 4px 8px rgba(0,0,0,0.08),0px 14px 14px rgba(0,0,0,0.07)' }
+        }
+      >
+        {/* Poster always behind Anam (visible when idle or while Anam loads) */}
+        {avatar.imageUrl && (
+          <img src={avatar.imageUrl} alt={avatar.name} className="absolute inset-0 w-full h-full object-cover" />
+        )}
+
+        {/* Single AnamPreview — always in DOM, externalArmed controls connection.
+            manualStart=true so it won't self-start; we arm it via externalArmed. */}
+        <AnamPreview
+          key={avatar.id}
+          avatarId={avatar.anamPersonaId}
+          greeting={greeting}
+          systemPrompt={agentSystemPrompt}
+          micEnabled
+          manualStart
+          externalArmed={armed}
+          showCoverArt={false}
+          showHud={false}
+          transparentBg
+          className="!aspect-auto absolute inset-0 w-full h-full rounded-none"
+        />
+
+        {/* Idle overlay: gradient + liquid-glass Play pill at bottom */}
+        {isIdle && (
+          <div className="absolute inset-0 flex items-end justify-center pb-3"
+            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.35) 0%, transparent 55%)' }}
+          >
+            <button
+              onClick={handlePlay}
+              className="inline-flex items-center gap-1.5 h-8 pl-3 pr-4 rounded-full bg-white/30 hover:bg-white/45 backdrop-blur-md border border-white/30 text-white text-[12px] font-[600] shadow-sm cursor-pointer transition-colors"
+            >
+              <Play size={11} strokeWidth={0} fill="white" className="ml-0.5" />
+              Play
+            </button>
+          </div>
+        )}
+
+        {/* Playing controls */}
+        {isPlaying && (
+          <>
+            <button
+              onClick={() => setWidgetState('expanded')}
+              className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white cursor-pointer transition-colors"
+            >
+              <Maximize2 size={11} strokeWidth={1.5} />
+            </button>
+            <button
+              onClick={handleEnd}
+              className="absolute bottom-2 left-0 right-0 flex justify-center cursor-pointer"
+            >
+              <span className="px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm text-white/70 text-[10px] font-[500] hover:text-white transition-colors">
+                End
+              </span>
+            </button>
+          </>
+        )}
+
+        {/* Expanded controls */}
+        {isExpanded && (
+          <div className="absolute top-2 right-2 flex gap-1.5">
+            <button
+              onClick={() => setWidgetState('playing')}
+              className="w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white cursor-pointer transition-colors"
+            >
+              <Minimize2 size={13} strokeWidth={1.5} />
+            </button>
+            <button
+              onClick={handleEnd}
+              className="w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white cursor-pointer transition-colors"
+            >
+              <X size={13} strokeWidth={1.5} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Label below floating card */}
+      {!isExpanded && (
+        <p
+          className="absolute text-[11px] text-neutral-500 leading-4 text-center"
+          style={{ bottom: 4, right: 16, width: 120 }}
+        >
+          {isIdle ? 'Click to talk' : 'Live'}
+        </p>
+      )}
     </div>
   )
 }
@@ -314,7 +446,7 @@ function PhonePreview() {
   return (
     <>
       {isActive ? (
-        <div className="flex-1 flex items-center justify-center bg-neutral-100 p-5">
+        <div className="flex-1 flex items-center justify-center p-5 relative z-10">
           {/* Figma: Section - Voice call — compact card, centered in panel */}
           <div className="w-full rounded-[13px] border border-[rgba(223,220,215,0.8)] bg-[rgba(253,253,252,0.95)] backdrop-blur-[12px] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] overflow-hidden">
 
@@ -372,7 +504,7 @@ function PhonePreview() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 bg-neutral-100 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center relative z-10">
           <div className="flex flex-col items-center gap-4 px-8 text-center">
             {error && (
               <p className="text-[12px] text-danger leading-4 max-w-[220px]">{error}</p>
@@ -380,7 +512,7 @@ function PhonePreview() {
             <button
               onClick={startCall}
               disabled={isConnecting}
-              className="w-14 h-14 rounded-full bg-brand hover:bg-brand-light transition-colors flex items-center justify-center shadow-[0px_4px_14px_rgba(0,77,34,0.35)] cursor-pointer disabled:opacity-50"
+              className="w-14 h-14 rounded-full bg-brand hover:bg-brand-light transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
             >
               {isConnecting
                 ? <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -407,8 +539,13 @@ function PhonePreview() {
 /* Preview panel — mirrors the deploy channels: a Web tab (floating widget →
    click → live face) and a Phone tab (PSTN call test). Web is the default
    when a face is attached, since that's where the face is meant to live. */
-function PreviewPanel({ onClose, hasFace }: { onClose: () => void; hasFace: boolean }) {
-  const [mode, setMode] = useState<PreviewMode>(hasFace ? 'Widget' : 'Phone')
+function PreviewPanel({ onClose, avatar, onPickAvatar, agentSystemPrompt }: {
+  onClose: () => void
+  avatar: Avatar | null
+  onPickAvatar: () => void
+  agentSystemPrompt: string
+}) {
+  const [mode, setMode] = useState<PreviewMode>('Phone')
 
   return (
     <aside className="w-[400px] shrink-0 flex flex-col h-full border-l border-neutral-400 bg-neutral-100">
@@ -433,7 +570,13 @@ function PreviewPanel({ onClose, hasFace }: { onClose: () => void; hasFace: bool
         </button>
       </div>
 
-      {mode === 'Widget' ? <WebPreview /> : <PhonePreview />}
+      <div className="flex-1 relative flex flex-col overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none z-0" style={{backgroundImage: 'linear-gradient(rgba(0,0,0,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.035) 1px, transparent 1px)', backgroundSize: '7px 7px', backgroundPosition: '3.5px 3.5px'}} />
+        {mode === 'Widget'
+          ? <WebPreview avatar={avatar} onPickAvatar={onPickAvatar} agentSystemPrompt={agentSystemPrompt} />
+          : <PhonePreview />
+        }
+      </div>
     </aside>
   )
 }
@@ -704,7 +847,8 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
   onSelectAvatar?: (avatar: Avatar | null) => void
 }) {
   const [activeTab, setActiveTab] = useState<Tab>('Configuration')
-  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(true)
+  const [agentSystemPrompt, setAgentSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
   const hasFace = !!selectedAvatar
   /* This agent already has a live phone number, so the header shows the
      number + Call▾ (not "Get Phone Number"). */
@@ -791,10 +935,11 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
             {publishing ? 'Publishing…' : 'Publish'}
           </button>
 
-          {/* Live phone number + Call▾ */}
+          {/* Live phone number — styled like the Preview / former "Get Phone
+              Number" control so it reads as one unit, not floating text. */}
           {hasPhoneNumber && (
-            <span className="flex items-center gap-1.5 ml-1 text-[13px] text-neutral-600 whitespace-nowrap">
-              <Hash size={14} strokeWidth={1.5} className="text-neutral-500" />
+            <span className="h-[30px] px-3 flex items-center gap-1.5 rounded-[7.2px] border border-neutral-400 bg-neutral-100 text-[13px] font-[500] text-neutral-600 whitespace-nowrap">
+              <Hash size={14} strokeWidth={1.5} className="text-neutral-500 shrink-0" />
               {AGENT.phoneNumber}
             </span>
           )}
@@ -833,7 +978,12 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
         <div className="flex-1 min-w-0 overflow-auto">
           <div className="px-9 pt-6 max-w-[1200px] w-full mx-auto flex flex-col pb-12">
             {activeTab === 'Configuration' ? (
-              <AgentConfigurationTab selectedAvatar={selectedAvatar ?? null} onSelectAvatar={onSelectAvatar ?? (() => {})} />
+              <AgentConfigurationTab
+                selectedAvatar={selectedAvatar ?? null}
+                onSelectAvatar={onSelectAvatar ?? (() => {})}
+                systemPrompt={agentSystemPrompt}
+                onSystemPromptChange={setAgentSystemPrompt}
+              />
             ) : activeTab === 'Deployment' ? (
               <>
                 {/* Production Version — read-only status of what's live. The
@@ -928,7 +1078,12 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
           'shrink-0 flex flex-col h-full overflow-hidden transition-[width] duration-300 ease-in-out',
           previewOpen ? 'w-[400px]' : 'w-0',
         )}>
-          <PreviewPanel onClose={() => setPreviewOpen(false)} hasFace={hasFace} />
+          <PreviewPanel
+            onClose={() => setPreviewOpen(false)}
+            avatar={selectedAvatar ?? null}
+            onPickAvatar={() => setActiveTab('Configuration')}
+            agentSystemPrompt={agentSystemPrompt}
+          />
         </div>
       </div>
     </div>

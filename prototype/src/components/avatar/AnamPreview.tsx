@@ -41,6 +41,12 @@ interface AnamPreviewProps {
   manualStart?: boolean
   /** Still poster shown before streaming (face thumbnail) in manualStart mode. */
   posterUrl?: string
+  /** Show the Live/Stop/Mic HUD overlay. Default true. Set false in Widget preview. */
+  showHud?: boolean
+  /** Externally control the armed state (overrides manualStart internal toggle). */
+  externalArmed?: boolean
+  /** Make the container background transparent (caller handles the backdrop). */
+  transparentBg?: boolean
 }
 
 const COVER = '/cartesia_cover.webp'
@@ -58,13 +64,16 @@ export function AnamPreview({
   showCoverArt = true,
   manualStart = false,
   posterUrl,
+  showHud = true,
+  externalArmed,
+  transparentBg = false,
 }: AnamPreviewProps) {
   const videoId = useId().replace(/:/g, '_')
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError]   = useState('')
   const [greetingDone, setGreetingDone] = useState(false)
-  // In manualStart mode, streaming only begins once the user presses Play.
-  const [armed, setArmed] = useState(!manualStart)
+  const [internalArmed, setInternalArmed] = useState(!manualStart)
+  const armed = externalArmed !== undefined ? externalArmed : internalArmed
   const onGreetingDoneRef = useRef(onGreetingDone)
   onGreetingDoneRef.current = onGreetingDone
   const micOn = micEnabled
@@ -86,6 +95,9 @@ export function AnamPreview({
             name: '',
             avatarId: '',
             voiceId: '',
+            // llmId must be present (even as undefined) so isCustomPersonaConfig()
+            // returns true and systemPrompt is included in the session token request.
+            llmId: undefined,
             ...(systemPrompt ? { systemPrompt } : {}),
           },
           // Mic drives the call when enabled — even with an opening greeting,
@@ -155,7 +167,7 @@ export function AnamPreview({
   const showCover = status === 'idle' || status === 'connecting' || (showCoverArt && greetingDone)
 
   return (
-    <div className={`relative overflow-hidden aspect-video ${className}`} style={showCoverArt ? { backgroundImage: `url(${COVER})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { backgroundColor: '#1c1b1a' }}>
+    <div className={`relative overflow-hidden aspect-video ${className}`} style={transparentBg ? {} : showCoverArt ? { backgroundImage: `url(${COVER})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { backgroundColor: '#1c1b1a' }}>
       <video id={videoId} autoPlay playsInline muted={outputMuted} className="absolute inset-0 w-full h-full object-cover" />
 
       {/* Cover / connecting state */}
@@ -173,7 +185,7 @@ export function AnamPreview({
             )}
           </>
         ) : (
-          <div className="absolute inset-0 bg-neutral-900" />
+          !transparentBg && <div className="absolute inset-0 bg-neutral-900" />
         )}
         {status === 'connecting' && (
           <div className="absolute top-4 right-4 flex items-center gap-1.5">
@@ -183,15 +195,16 @@ export function AnamPreview({
         )}
       </div>
 
-      {/* Manual-start poster — still image + Preview button, no stream until clicked */}
-      {manualStart && !armed && (
+      {/* Manual-start poster — still image + Preview button, no stream until clicked.
+          Hidden when externalArmed controls the state (caller owns the Play UI). */}
+      {manualStart && !armed && externalArmed === undefined && (
         <div className="absolute inset-0">
           {posterUrl
             ? <img src={posterUrl} alt="" className="w-full h-full object-cover" />
             : <div className="absolute inset-0 bg-neutral-900" />}
           <div className="absolute inset-0 bg-black/15" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <GlassPill onClick={() => setArmed(true)} aria-label="Play" className="h-10 pl-4 pr-5">
+            <GlassPill onClick={() => setInternalArmed(true)} aria-label="Play" className="h-10 pl-4 pr-5">
               <Play size={15} className="fill-black/70 text-black/70" />
               <span className="text-[13px] font-[600] text-black/70">Play</span>
             </GlassPill>
@@ -206,7 +219,7 @@ export function AnamPreview({
         </div>
       )}
       {/* Live HUD — left: Live + Stop, right: mic state */}
-      {status === 'live' && (
+      {status === 'live' && showHud && (
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-3 bg-gradient-to-t from-black/40 to-transparent">
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 pointer-events-none">
@@ -214,7 +227,7 @@ export function AnamPreview({
               <span className="text-[11px] text-white/80 font-[500]">Live</span>
             </span>
             <button
-              onClick={() => { setArmed(false); setStatus('idle'); setGreetingDone(false) }}
+              onClick={() => { setInternalArmed(false); setStatus('idle'); setGreetingDone(false) }}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 hover:bg-black/60 cursor-pointer transition-colors"
             >
               <Square size={10} className="fill-white/70 text-white/70" />

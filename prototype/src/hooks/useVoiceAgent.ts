@@ -9,11 +9,18 @@ const MIC_SAMPLE_RATE = 16000
 export type CallState = 'idle' | 'connecting' | 'active' | 'error'
 export type TalkState = 'speaking' | 'listening'
 
+export interface Message {
+  role: 'agent' | 'user'
+  content: string
+  id: number
+}
+
 export interface VoiceAgentState {
   callState: CallState
   talkState: TalkState
   agentAmplitude: number
   userAmplitude: number
+  messages: Message[]
   error: string | null
   startCall: () => Promise<void>
   endCall: () => void
@@ -27,11 +34,14 @@ function pcmRms(float32: Float32Array): number {
   return Math.sqrt(sum / float32.length)
 }
 
+let _msgId = 0
+
 export function useVoiceAgent(): VoiceAgentState {
   const [callState, setCallState] = useState<CallState>('idle')
   const [talkState, setTalkState] = useState<TalkState>('listening')
   const [agentAmplitude, setAgentAmplitude] = useState(0)
   const [userAmplitude, setUserAmplitude] = useState(0)
+  const [messages, setMessages] = useState<Message[]>([])
   const [muted, setMuted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -80,6 +90,7 @@ export function useVoiceAgent(): VoiceAgentState {
     setTalkState('listening')
     setMuted(false)
     setError(null)
+    setMessages([])
   }, [cleanup])
 
   const startCall = useCallback(async () => {
@@ -125,16 +136,19 @@ export function useVoiceAgent(): VoiceAgentState {
         try { msg = JSON.parse(e.data) } catch { return }
 
         if (msg.type === 'message' && msg.content) {
+          const capturedContent = msg.content!
+          const capturedId = ++_msgId
           setTalkState('speaking')
           void (async () => {
             try {
               const gen = ttsWs.generate({
                 model_id: 'sonic-2',
                 voice: { mode: 'id', id: VOICE_ID },
-                transcript: msg.content!,
+                transcript: capturedContent,
                 output_format: { container: 'raw', encoding: 'pcm_s16le', sample_rate: 24000 },
               })
 
+              let messageAdded = false
               for await (const chunk of gen) {
                 if (chunk.type !== 'chunk' || !chunk.audio) continue
 
@@ -149,6 +163,16 @@ export function useVoiceAgent(): VoiceAgentState {
                 const delayMs = Math.max(0, (startAt - audioCtx.currentTime) * 1000)
                 const id = setTimeout(() => setAgentAmplitude(amp), delayMs)
                 ampTimeoutsRef.current.push(id)
+
+                // Add chat message timed to when audio actually starts playing
+                if (!messageAdded) {
+                  messageAdded = true
+                  const msgId2 = setTimeout(
+                    () => setMessages(prev => [...prev, { role: 'agent', content: capturedContent, id: capturedId }]),
+                    delayMs,
+                  )
+                  ampTimeoutsRef.current.push(msgId2)
+                }
 
                 const buf = audioCtx.createBuffer(1, float32.length, 24000)
                 buf.copyToChannel(float32, 0)
@@ -184,6 +208,7 @@ export function useVoiceAgent(): VoiceAgentState {
             if (sttEvent.type === 'turn.start') {
               lineWs.send(JSON.stringify({ type: 'user_state', value: 'speaking' }))
             } else if (sttEvent.type === 'turn.end' && sttEvent.transcript) {
+              setMessages(prev => [...prev, { role: 'user', content: sttEvent.transcript, id: ++_msgId }])
               lineWs.send(JSON.stringify({ type: 'message', content: sttEvent.transcript }))
               lineWs.send(JSON.stringify({ type: 'user_state', value: 'idle' }))
             }
@@ -251,5 +276,5 @@ export function useVoiceAgent(): VoiceAgentState {
   useEffect(() => { cleanupRef.current = cleanup }, [cleanup])
   useEffect(() => () => cleanupRef.current(), [])
 
-  return { callState, talkState, agentAmplitude, userAmplitude, error, startCall, endCall, toggleMute, muted }
+  return { callState, talkState, agentAmplitude, userAmplitude, messages, error, startCall, endCall, toggleMute, muted }
 }

@@ -33,7 +33,7 @@ function InfoButton() {
   )
 }
 
-const DEFAULT_SYSTEM_PROMPT = `You are Priya, a voice banking assistant for First National Bank, powered by Cartesia. You help customers with everyday account needs over the phone — quickly, accurately, and without friction.
+export const DEFAULT_SYSTEM_PROMPT = `You are Priya, a voice banking assistant for First National Bank, powered by Cartesia. You help customers with everyday account needs over the phone — quickly, accurately, and without friction.
 
 # Personality
 
@@ -71,7 +71,7 @@ Didn't catch something: "Sorry, I missed that — could you repeat the last part
 ## end_call
 When the caller says goodbye or the issue is resolved, confirm briefly and end: "Take care — have a good one." Then call end_call.`
 
-const DEFAULT_INITIAL_MESSAGE = `Hi, you've reached First National Bank. I'm Priya, your virtual banking assistant. I can help with your balance, recent transactions, card services, or transfers. What can I do for you today?`
+export const DEFAULT_INITIAL_MESSAGE = `Hi, you've reached First National Bank. I'm Priya, your virtual banking assistant. I can help with your balance, recent transactions, card services, or transfers. What can I do for you today?`
 
 /* Section heading shared across the form (Figma "Heading 2"). */
 function SectionHeading({ children, info }: { children: React.ReactNode; info?: boolean }) {
@@ -334,11 +334,12 @@ function RightColumnBgSound() {
   )
 }
 
-export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar }: {
+export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar, systemPrompt, onSystemPromptChange }: {
   selectedAvatar: Avatar | null
   onSelectAvatar: (avatar: Avatar | null) => void
+  systemPrompt: string
+  onSystemPromptChange: (v: string) => void
 }) {
-  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
   const [initialMessage, setInitialMessage] = useState(DEFAULT_INITIAL_MESSAGE)
   const [skipIntro, setSkipIntro] = useState(false)
   const [languageDetection, setLanguageDetection] = useState(false)
@@ -368,7 +369,7 @@ export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar }: {
             </div>
             <textarea
               value={systemPrompt}
-              onChange={e => setSystemPrompt(e.target.value)}
+              onChange={e => onSystemPromptChange(e.target.value)}
               spellCheck={false}
               className="h-[409px] w-full resize-none rounded-[7.2px] border border-neutral-400 bg-white px-[11px] py-[9px] text-[13px] leading-5 text-neutral-900 outline-none focus:border-neutral-600"
             />
