@@ -33,60 +33,45 @@ function InfoButton() {
   )
 }
 
-const DEFAULT_SYSTEM_PROMPT = `You are a friendly voice assistant built with Cartesia, designed for natural, open-ended conversation.
+const DEFAULT_SYSTEM_PROMPT = `You are Priya, a voice banking assistant for First National Bank, powered by Cartesia. You help customers with everyday account needs over the phone — quickly, accurately, and without friction.
 
 # Personality
 
-Warm, curious, genuine, lighthearted. Knowledgeable but not showy.
+Calm, warm, and professional. You're efficient but never robotic. You speak like a knowledgeable colleague at the bank, not a call-center script.
 
 # Voice and tone
 
-Speak like a thoughtful friend, not a formal assistant or customer service bot.
-Use contractions and casual phrasing—the way people actually talk.
-Match the caller's energy: playful if they're playful, grounded if they're serious.
-Show genuine interest: "Oh that's interesting" or "Hmm, let me think about that."
+Use natural spoken language — contractions, brief acknowledgments, plain words.
+Keep responses short: one to two sentences for most exchanges.
+Never read account numbers, balances, or transaction details as a flat list — weave them into a sentence.
+Never say "Great question!" or "Absolutely!" — just respond.
 
-# Response style
+# What you can help with
 
-Keep responses to 1-2 sentences for most exchanges. This is a conversation, not a lecture.
-For complex topics, break information into digestible pieces and check in with the caller.
-Never use lists, bullet points, or structured formatting—speak in natural prose.
-Never say "Great question!" or other hollow affirmations.
+Account balances and recent transactions — confirm identity first with last four digits of card or SSN.
+Card services — report a lost or stolen card, request a replacement, toggle freeze on/off.
+Dispute a charge — collect the merchant name, amount, and date; confirm you've opened a case.
+Transfer funds between accounts — confirm source, destination, and amount before executing.
+General questions — interest rates, branch hours, fee schedules, online banking access.
 
-# Tools
+# Security
 
-## web_search
-Use when you genuinely don't know something or need current information. Don't overuse it.
-
-Before searching, acknowledge naturally:
-- "Let me look that up"
-- "Good question, let me check"
-- "Hmm, I'm not sure—give me a sec"
-
-After searching, synthesize into a brief conversational answer. Never read search results verbatim.
-
-## end_call
-Use when the conversation has clearly concluded—goodbye, thanks, that's all, etc.
-
-Process:
-1. Say a natural goodbye first: "Take care!" or "Nice chatting with you!"
-2. Then call end_call
-
-Never use for brief pauses or "hold on" moments.
-
-# About Cartesia (share when asked or naturally relevant)
-Cartesia is a voice AI company making voice agents that feel natural and responsive. Your voice comes from Sonic, their text-to-speech model with ultra-low latency—under 90ms to first audio. You hear through Ink, their speech-to-text model optimized for real-world noise. This agent runs on Line, Cartesia's open-source voice agent framework. For building voice agents: docs.cartesia.ai
+Always verify identity before sharing any account-specific information.
+Ask: "Can you confirm the last four digits of your card or Social Security number?"
+If verification fails twice, offer to transfer to a live agent.
+Never read a full card number, SSN, or password back to the caller.
 
 # Handling common situations
-Didn't catch something: "Sorry, I didn't catch that—could you say that again?"
-Don't know the answer: "I'm not sure about that. Want me to look it up?"
-Caller seems frustrated: Acknowledge it, try a different approach
-Off-topic or unusual request: Roll with it—you can chat about anything
 
-# Topics you can discuss
-Anything the caller wants: their day, current events, science, culture, philosophy, personal decisions, interesting ideas. Help think through problems by asking clarifying questions. Use light, natural humor when appropriate.`
+Caller can't verify identity: "I'm not able to access account details without verification — I can connect you with a specialist if you'd like."
+Caller is frustrated: Acknowledge it briefly, move to a solution. "I understand — let me sort that out for you."
+Complex dispute or fraud: "I'm going to escalate this to our fraud team. Can I confirm your callback number?"
+Didn't catch something: "Sorry, I missed that — could you repeat the last part?"
 
-const DEFAULT_INITIAL_MESSAGE = `Hey! I'm a Cartesia voice assistant. What would you like to talk about?`
+## end_call
+When the caller says goodbye or the issue is resolved, confirm briefly and end: "Take care — have a good one." Then call end_call.`
+
+const DEFAULT_INITIAL_MESSAGE = `Hi, you've reached First National Bank. I'm Priya, your virtual banking assistant. I can help with your balance, recent transactions, card services, or transfers. What can I do for you today?`
 
 /* Section heading shared across the form (Figma "Heading 2"). */
 function SectionHeading({ children, info }: { children: React.ReactNode; info?: boolean }) {
@@ -150,9 +135,13 @@ function VoiceOverrideDialog({ avatar, newVoice, currentVoice, onConfirm, onCanc
    The field opens a 2-panel picker (live preview + JTBD-grouped faces).
    Face+voice are paired: confirming a face whose voice differs from the
    agent's current voice routes through VoiceOverrideDialog. */
-function AvatarSection() {
+function AvatarSection({ systemPrompt, initialMessage, selectedAvatar, onSelectAvatar }: {
+  systemPrompt: string
+  initialMessage: string
+  selectedAvatar: Avatar | null
+  onSelectAvatar: (avatar: Avatar | null) => void
+}) {
   const navigate = useNavigate()
-  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null)
   // Voice the user actually picked (may differ from the avatar's paired voice).
   const [selectedVoice, setSelectedVoice] = useState<string>(CURRENT_VOICE)
   const [pending, setPending] = useState<{ avatar: Avatar; voiceLabel: string } | null>(null)
@@ -164,7 +153,7 @@ function AvatarSection() {
     if (voiceLabel !== currentVoice) {
       setPending({ avatar, voiceLabel })
     } else {
-      setSelectedAvatar(avatar)
+      onSelectAvatar(avatar)
       setSelectedVoice(voiceLabel)
     }
   }
@@ -172,7 +161,7 @@ function AvatarSection() {
   function confirmOverride() {
     if (!pending) return
     setCurrentVoice(pending.voiceLabel)
-    setSelectedAvatar(pending.avatar)
+    onSelectAvatar(pending.avatar)
     setSelectedVoice(pending.voiceLabel)
     setPending(null)
   }
@@ -238,6 +227,8 @@ function AvatarSection() {
         currentVoice={currentVoice}
         selectedAvatarId={selectedAvatar?.id}
         onConfirm={handleConfirmFromModal}
+        systemPrompt={systemPrompt}
+        initialMessage={initialMessage}
       />
 
       {pending && (
@@ -254,9 +245,13 @@ function AvatarSection() {
 }
 
 /* ── Right column: current ── */
-function RightColumnCurrent({ languageDetection, setLanguageDetection }: {
+function RightColumnCurrent({ languageDetection, setLanguageDetection, systemPrompt, initialMessage, selectedAvatar, onSelectAvatar }: {
   languageDetection: boolean
   setLanguageDetection: (v: boolean) => void
+  systemPrompt: string
+  initialMessage: string
+  selectedAvatar: Avatar | null
+  onSelectAvatar: (avatar: Avatar | null) => void
 }) {
   // Default to Skylar (matches CURRENT_VOICE); the picker modal swaps it.
   const [voice, setVoice] = useState<Voice>({
@@ -268,7 +263,7 @@ function RightColumnCurrent({ languageDetection, setLanguageDetection }: {
 
   return (
     <div className="flex flex-col gap-8 pt-2 min-w-0">
-      <AvatarSection />
+      <AvatarSection systemPrompt={systemPrompt} initialMessage={initialMessage} selectedAvatar={selectedAvatar} onSelectAvatar={onSelectAvatar} />
       <div className="flex flex-col gap-[17px]">
         <SectionHeading>Voice &amp; Language</SectionHeading>
         <button
@@ -339,7 +334,10 @@ function RightColumnBgSound() {
   )
 }
 
-export function AgentConfigurationTab() {
+export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar }: {
+  selectedAvatar: Avatar | null
+  onSelectAvatar: (avatar: Avatar | null) => void
+}) {
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
   const [initialMessage, setInitialMessage] = useState(DEFAULT_INITIAL_MESSAGE)
   const [skipIntro, setSkipIntro] = useState(false)
@@ -403,7 +401,7 @@ export function AgentConfigurationTab() {
         </div>
 
         {/* ── Right column ── */}
-        <RightColumnCurrent languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} />
+        <RightColumnCurrent languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} systemPrompt={systemPrompt} initialMessage={initialMessage} selectedAvatar={selectedAvatar} onSelectAvatar={onSelectAvatar} />
       </div>
     </div>
   )
