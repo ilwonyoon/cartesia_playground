@@ -18,11 +18,14 @@ export interface Avatar {
   expressiveness: number       // 0–100
   style: 'Realistic' | 'Illustrated' | 'Abstract'
   isCustom?: boolean
-  /* Face thumbnail for the grid/preview (Anam persona image or static asset).
-     Falls back to the emoji chip when absent. */
+  /* Face thumbnail for the grid/preview (Anam persona still). Falls back to
+     the emoji chip when absent. */
   imageUrl?: string
-  /* Live-preview hooks. anamPersonaId is a real Anam persona; when absent,
-     AnamPreview falls back to the env default persona (still previews). */
+  /* Looping preview clip for this face (Anam-exported mp4). When present the
+     preview plays this locally instead of opening a live Anam session — same
+     face as the thumbnail, no API cost. */
+  videoUrl?: string
+  /* Real Anam persona id, used if we ever stream live. Optional. */
   anamPersonaId?: string
   greeting?: string
   systemPrompt?: string
@@ -31,100 +34,106 @@ export interface Avatar {
 export const AVATARS: Avatar[] = [
   {
     id: 'skylar',
-    name: 'Skylar',
+    name: 'Ava',
     role: 'Friendly Guide',
     industry: 'General',
     gender: 'Female',
     pairedVoice: 'Skylar - Friendly Guide',
-    pairedVoiceId: 'e07c00bc-4134-4eae-9ea4-1a55fb45746b',
+    pairedVoiceId: 'v1',
     emoji: '👩',
     bgColor: 'bg-green-100',
     expressiveness: 70,
     style: 'Realistic',
-    imageUrl: '/avatars/skylar.png',
-    // No anamPersonaId → previews on the env default persona (the project's default face).
-    greeting: "Hi, I'm Skylar! I'm here to help you get started — what can I do for you?",
+    imageUrl: '/avatars/sophie_sofa.png',
+    videoUrl: '/avatars/sophie_sofa.mp4',
+    anamPersonaId: '271d9f52-40d5-4ec8-8bc8-368aa67e0026', // Liv
+    greeting: "Hi, I'm Ava! I'm here to help you get started — what can I do for you?",
   },
   {
     id: 'nova',
-    name: 'Nova',
+    name: 'Priya',
     role: 'Financial Advisor',
     industry: 'Finance',
     gender: 'Female',
-    pairedVoice: 'Nova - Professional',
-    pairedVoiceId: 'nova-voice-id',
+    pairedVoice: 'Gemma - Decisive Agent',
+    pairedVoiceId: 'v3',
     emoji: '👩‍💼',
     bgColor: 'bg-blue-100',
     expressiveness: 50,
     style: 'Realistic',
-    imageUrl: '/avatars/nova.png',
-    greeting: "Hello, I'm Nova. I can walk you through your accounts and options — where would you like to start?",
+    imageUrl: '/avatars/anne_home.png',
+    videoUrl: '/avatars/anne_home.mp4',
+    greeting: "Hello, I'm Priya. I can walk you through your accounts and options — where would you like to start?",
   },
   {
     id: 'marcus',
-    name: 'Marcus',
+    name: 'Theo',
     role: 'Healthcare Coordinator',
     industry: 'Healthcare',
     gender: 'Male',
-    pairedVoice: 'Marcus - Calm',
-    pairedVoiceId: 'marcus-voice-id',
+    pairedVoice: 'Daniel - Modern Assistant',
+    pairedVoiceId: 'v5',
     emoji: '👨‍⚕️',
     bgColor: 'bg-teal-100',
     expressiveness: 55,
     style: 'Realistic',
-    imageUrl: '/avatars/marcus.png',
+    imageUrl: '/avatars/julia_sofa.png', // Bella persona's actual face
+    videoUrl: '/avatars/julia_sofa.mp4',
     anamPersonaId: '7227cf25-c087-4f14-bcc9-8a1a4e193be8', // Bella (Patient Coordinator)
-    greeting: "Hello, I'm Marcus. I'm here to help with appointments and any questions before your visit.",
-    systemPrompt: 'You are Marcus, a healthcare coordinator. Be calm, caring, and professional. Keep responses to 2-3 sentences.',
+    greeting: "Hello, I'm Theo. I'm here to help with appointments and any questions before your visit.",
+    systemPrompt: 'You are Theo, a healthcare coordinator. Be calm, caring, and professional. Keep responses to 2-3 sentences.',
   },
   {
     id: 'aria',
-    name: 'Aria',
+    name: 'Maya',
     role: 'Government Assistant',
     industry: 'Government',
     gender: 'Female',
-    pairedVoice: 'Aria - Authoritative',
-    pairedVoiceId: 'aria-voice-id',
+    pairedVoice: 'Jacqueline - Reassuring Agent',
+    pairedVoiceId: 'v7',
     emoji: '👩‍💻',
     bgColor: 'bg-purple-100',
     expressiveness: 40,
     style: 'Realistic',
-    imageUrl: '/avatars/aria.png',
-    greeting: "Hello, I'm Aria. I can help you find the right form or service — what do you need today?",
+    imageUrl: '/avatars/astrid_windowsofacorner.png',
+    videoUrl: '/avatars/astrid_windowsofacorner.mp4',
+    greeting: "Hello, I'm Maya. I can help you find the right form or service — what do you need today?",
   },
   {
     id: 'james',
-    name: 'James',
+    name: 'Leo',
     role: 'Sales Representative',
     industry: 'Sales',
     gender: 'Male',
-    pairedVoice: 'James - Energetic',
-    pairedVoiceId: 'james-voice-id',
+    pairedVoice: 'Blake - Helpful Agent',
+    pairedVoiceId: 'v11',
     emoji: '👨‍💼',
     bgColor: 'bg-orange-100',
     expressiveness: 85,
     style: 'Realistic',
-    imageUrl: '/avatars/james.png',
+    imageUrl: '/avatars/gabriel_table.png',
+    videoUrl: '/avatars/gabriel_table.mp4',
     anamPersonaId: '000391fb-0093-48a8-8135-00eecd43e926', // Gabriel (Sales)
-    greeting: "Hey, I'm James! Tell me what you're building and I'll be straight with you about the fit.",
-    systemPrompt: 'You are James, a sales rep. Be enthusiastic, persuasive, and focused on value. Keep responses to 2-3 sentences.',
+    greeting: "Hey, I'm Leo! Tell me what you're building and I'll be straight with you about the fit.",
+    systemPrompt: 'You are Leo, a sales rep. Be enthusiastic, persuasive, and focused on value. Keep responses to 2-3 sentences.',
   },
   {
     id: 'luna',
-    name: 'Luna',
+    name: 'Ivy',
     role: 'Customer Support',
     industry: 'Support',
     gender: 'Female',
-    pairedVoice: 'Luna - Warm',
-    pairedVoiceId: 'luna-voice-id',
+    pairedVoice: 'Katie - Friendly Fixer',
+    pairedVoiceId: 'v6',
     emoji: '👩‍🔬',
     bgColor: 'bg-pink-100',
     expressiveness: 65,
     style: 'Illustrated',
-    imageUrl: '/avatars/luna.png',
+    imageUrl: '/avatars/layla_home.png', // Mia persona's actual face
+    videoUrl: '/avatars/layla_home.mp4',
     anamPersonaId: '05eb3c1f-50ee-42c5-accc-4606bfaa9276', // Mia (Customer Support)
-    greeting: "Hi, I'm Luna! Billing, a bug, or just getting started — I've got you. What can I help with?",
-    systemPrompt: 'You are Luna, a customer support agent. Be warm, empathetic, and efficient. Keep responses to 2-3 sentences.',
+    greeting: "Hi, I'm Ivy! Billing, a bug, or just getting started — I've got you. What can I help with?",
+    systemPrompt: 'You are Ivy, a customer support agent. Be warm, empathetic, and efficient. Keep responses to 2-3 sentences.',
   },
 ]
 
@@ -138,19 +147,33 @@ export function resolveAnamPersonaId(avatar: Avatar): string | undefined {
   return avatar.anamPersonaId
 }
 
+/** True when this avatar can play a moving preview — a local clip (videoUrl)
+    or a live Anam persona. The clip always matches the thumbnail face. */
+export function hasLivePreview(avatar: Avatar): boolean {
+  return !!avatar.videoUrl || !!avatar.anamPersonaId
+}
+
 /** One line spoken on preview — authored greeting, or a generated fallback. */
 export function previewGreeting(avatar: Avatar): string {
   return avatar.greeting ?? `Hi, I'm ${avatar.name}. ${avatar.role} here — how can I help?`
 }
 
-/** The face whose paired voice matches the agent's current voice (keeps voice, just adds a face). */
-export function getRecommendedAvatar(currentVoice: string): Avatar | undefined {
-  return AVATARS.find(a => a.pairedVoice === currentVoice)
+/* Faces recommended for the current agent — the system prompt + voice are
+   already known, so we surface live-previewable faces that suit a friendly,
+   general-purpose assistant. These keep the agent's CURRENT voice (only the
+   face changes); their own pairedVoice is ignored in the Recommended tab.
+   Curated by id, in priority order. */
+const RECOMMENDED_FACE_IDS = ['skylar', 'luna', 'marcus'] // Ava, Ivy, Theo
+
+/** The recommended faces (live-previewable), in curated order, max 3. */
+export function getRecommendedFaces(): Avatar[] {
+  return RECOMMENDED_FACE_IDS
+    .map(id => AVATARS.find(a => a.id === id))
+    .filter((a): a is Avatar => !!a && hasLivePreview(a))
+    .slice(0, 3)
 }
 
-/** Split into the recommended face (if any) and the rest, in declaration order. */
-export function partitionAvatars(currentVoice: string): { recommended: Avatar | undefined; rest: Avatar[] } {
-  const recommended = getRecommendedAvatar(currentVoice)
-  const rest = AVATARS.filter(a => a.id !== recommended?.id)
-  return { recommended, rest }
+/** Order avatars so live-previewable faces come first (then by declaration). */
+export function sortByLivePreview(avatars: Avatar[]): Avatar[] {
+  return [...avatars].sort((a, b) => Number(hasLivePreview(b)) - Number(hasLivePreview(a)))
 }

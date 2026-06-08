@@ -17,15 +17,18 @@ interface VoiceRowProps {
   onTogglePlay: () => void
   compact?: boolean
   onSelect?: () => void
+  /** Mark this row as the currently chosen voice (picker use) — shows a badge
+      instead of filling the whole row. */
+  selected?: boolean
 }
 
-export function VoiceRow({ voice, playing, onTogglePlay, compact = false, onSelect }: VoiceRowProps) {
+export function VoiceRow({ voice, playing, onTogglePlay, compact = false, onSelect, selected = false }: VoiceRowProps) {
   return (
     <div
       onClick={onSelect}
       className={cn(
-        // warm-neutral hover fill + rounded corners (consistent across list and picker)
-        'flex items-center rounded-[10px] transition-colors group px-2 hover:bg-interactive-hover-bg',
+        // hover fill + rounded corners (consistent across list and picker)
+        'flex items-center rounded-[10px] transition-colors group px-2 hover:bg-[#f5f5f5]',
         onSelect ? 'cursor-pointer' : '',
       )}
       style={{ minHeight: '56.5px', paddingTop: 8, paddingBottom: 8 }}
@@ -47,6 +50,11 @@ export function VoiceRow({ voice, playing, onTogglePlay, compact = false, onSele
           <span className="text-[13.1px] font-[500] text-[#39342f]">{voice.name}</span>
           <span className="text-[13.1px] text-[#737373]">- {voice.tag}</span>
           {voice.verified && <VerifiedBadge />}
+          {selected && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-tint text-brand font-[600] tracking-wide uppercase flex-shrink-0">
+              Selected
+            </span>
+          )}
         </div>
         <p className="text-[13px] text-[#737373] leading-[1.48] truncate">{voice.desc}</p>
       </div>

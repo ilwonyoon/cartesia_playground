@@ -445,8 +445,8 @@ function CallButton({ hasNumber }: { inProgress: boolean; onToggle: () => void; 
 }
 
 export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
-  const [activeTab, setActiveTab] = useState<Tab>('Deployment')
-  const [previewOpen, setPreviewOpen] = useState(true)
+  const [activeTab, setActiveTab] = useState<Tab>('Configuration')
+  const [previewOpen, setPreviewOpen] = useState(false)
   /* Toggle to simulate no-number vs provisioned state. */
   const hasPhoneNumber = false
   const hasDraft = true
@@ -472,26 +472,8 @@ export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
           </a>
         </div>
 
-        {/* Right: [Draft] [Publish]  [Preview]  [Get Phone Number | Call▼] */}
+        {/* Right: [Preview] [Publish]  [Get Phone Number | Call▼] */}
         <div className="flex items-center gap-2 shrink-0">
-
-          {/* Draft badge + Publish */}
-          {hasDraft && (
-            <span className="text-[12px] font-[500] text-neutral-500 leading-none">Draft</span>
-          )}
-          <button
-            disabled={!hasDraft}
-            className={cn(
-              'h-[30px] px-3 rounded-[7.2px] text-[13px] font-[500] transition-colors',
-              hasDraft
-                ? 'bg-brand text-white hover:bg-brand-light cursor-pointer'
-                : 'bg-neutral-300 text-neutral-500 cursor-not-allowed',
-            )}
-          >
-            Publish
-          </button>
-
-          <div className="w-px h-4 bg-neutral-400 shrink-0" />
 
           {/* Preview — WebSocket test, opens right panel */}
           <button
@@ -504,6 +486,19 @@ export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
             )}
           >
             Preview
+          </button>
+
+          {/* Publish */}
+          <button
+            disabled={!hasDraft}
+            className={cn(
+              'h-[30px] px-3 rounded-[7.2px] text-[13px] font-[500] transition-colors',
+              hasDraft
+                ? 'bg-brand text-white hover:bg-brand-light cursor-pointer'
+                : 'bg-neutral-300 text-neutral-500 cursor-not-allowed',
+            )}
+          >
+            Publish
           </button>
 
           <div className="w-px h-4 bg-neutral-400 shrink-0" />
@@ -555,7 +550,7 @@ export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
                 <div className="py-4">
                   <h3 className="text-[18.6px] font-[600] text-neutral-900 leading-7">Production Version</h3>
                 </div>
-                <div className="bg-neutral-200 rounded-[4.32px] px-6 py-8">
+                <div className="rounded-[4.32px] px-6 py-8">
                   <div className="grid grid-cols-4 gap-10">
                     <Field label="Version">
                       <span className="font-mono text-[14px] text-neutral-900">{PRODUCTION.version}</span>

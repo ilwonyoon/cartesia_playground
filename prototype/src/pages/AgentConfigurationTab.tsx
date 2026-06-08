@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, Sparkles, Check, Upload, ChevronRight, AlertCircle } from 'lucide-react'
+import { ChevronDown, Sparkles, Check, Upload, AlertCircle } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Toggle } from '../components/ui/Toggle'
-import { type Avatar } from '../data/avatars'
+import { AVATARS, type Avatar } from '../data/avatars'
 import { VoicePickerModal } from '../components/voice/VoicePickerModal'
 import { AvatarPickerModal } from '../components/avatar/AvatarPickerModal'
 import { type Voice } from '../data/voices'
 
 const CURRENT_VOICE = 'Skylar - Friendly Guide'
-
-type Variation = 'current' | 'v1' | 'v2'
 
 /* ── Agent Configuration tab (Figma 56:1387) ──────────────────
    Two-column form: System Prompt + Initial Message (left),
@@ -100,116 +98,10 @@ function SectionHeading({ children, info }: { children: React.ReactNode; info?: 
   )
 }
 
-/* ── Persona avatars for V1/V2 ── */
-const PERSONAS = [
-  { id: 'skylar', name: 'Skylar', role: 'Friendly Guide', industry: 'General', gender: 'Female', voice: 'Skylar', language: 'English', emoji: '👩', color: 'bg-green-100' },
-  { id: 'nova', name: 'Nova', role: 'Financial Advisor', industry: 'Finance', gender: 'Female', voice: 'Nova', language: 'English', emoji: '👩‍💼', color: 'bg-blue-100' },
-  { id: 'marcus', name: 'Marcus', role: 'Healthcare Coordinator', industry: 'Healthcare', gender: 'Male', voice: 'Marcus', language: 'English', emoji: '👨‍⚕️', color: 'bg-teal-100' },
-  { id: 'aria', name: 'Aria', role: 'Government Assistant', industry: 'Government', voice: 'Aria', gender: 'Female', language: 'English', emoji: '👩‍💻', color: 'bg-purple-100' },
-  { id: 'james', name: 'James', role: 'Sales Representative', industry: 'Sales', gender: 'Male', voice: 'James', language: 'English', emoji: '👨‍💼', color: 'bg-orange-100' },
-  { id: 'luna', name: 'Luna', role: 'Customer Support', industry: 'Support', gender: 'Female', voice: 'Luna', language: 'English', emoji: '👩‍🔬', color: 'bg-pink-100' },
-] as const
-
-type PersonaId = typeof PERSONAS[number]['id']
-type Industry = 'All' | 'Finance' | 'Healthcare' | 'Government' | 'Sales' | 'Support' | 'General'
-
-/* ── Persona card shown in the right column (V1) ── */
-function PersonaCard({ personaId, onClick }: { personaId: PersonaId; onClick: () => void }) {
-  const p = PERSONAS.find(x => x.id === personaId)!
-  return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-[9px] border border-neutral-300 bg-neutral-50 hover:bg-neutral-100 cursor-pointer text-left transition-colors"
-    >
-      <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0', p.color)}>
-        {p.emoji}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-[600] text-neutral-900 leading-5">{p.name}</div>
-        <div className="text-[11.5px] text-neutral-500 leading-4 truncate">{p.role} · {p.language}</div>
-        <div className="text-[11px] text-neutral-400 leading-4">{p.gender} voice</div>
-      </div>
-      <ChevronRight size={15} className="text-neutral-400 shrink-0" />
-    </button>
-  )
-}
-
-/* ── Persona picker sheet (V2) ── */
-function PersonaPickerSheet({ selected, onSelect, onClose }: {
-  selected: PersonaId
-  onSelect: (id: PersonaId) => void
-  onClose: () => void
-}) {
-  const [industry, setIndustry] = useState<Industry>('All')
-  const industries: Industry[] = ['All', 'Finance', 'Healthcare', 'Government', 'Sales', 'Support', 'General']
-  const filtered = industry === 'All' ? PERSONAS : PERSONAS.filter(p => p.industry === industry)
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/20" />
-      <div
-        className="relative w-full max-w-[560px] bg-white rounded-t-2xl shadow-2xl p-6 flex flex-col gap-5 max-h-[80vh]"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-[16px] font-[600] text-neutral-900">Choose a Persona</h3>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 text-[22px] leading-none cursor-pointer">&times;</button>
-        </div>
-
-        {/* Industry filter pills */}
-        <div className="flex gap-1.5 flex-wrap">
-          {industries.map(ind => (
-            <button
-              key={ind}
-              onClick={() => setIndustry(ind)}
-              className={cn(
-                'px-3 py-1 rounded-full text-[12px] font-[500] cursor-pointer transition-colors',
-                industry === ind
-                  ? 'bg-brand text-white'
-                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-              )}
-            >
-              {ind}
-            </button>
-          ))}
-        </div>
-
-        {/* Persona grid */}
-        <div className="grid grid-cols-2 gap-3 overflow-y-auto">
-          {filtered.map(p => (
-            <button
-              key={p.id}
-              onClick={() => { onSelect(p.id); onClose() }}
-              className={cn(
-                'flex items-center gap-3 p-3 rounded-[9px] border cursor-pointer text-left transition-colors',
-                selected === p.id
-                  ? 'border-brand bg-brand-tint'
-                  : 'border-neutral-200 bg-neutral-50 hover:bg-neutral-100'
-              )}
-            >
-              <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0', p.color)}>
-                {p.emoji}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-[600] text-neutral-900 leading-5">{p.name}</div>
-                <div className="text-[11px] text-neutral-500 leading-4">{p.role}</div>
-                <div className="text-[11px] text-neutral-400 leading-4">{p.gender} · {p.language}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <p className="text-[11.5px] text-neutral-400 text-center">
-          Selecting a persona pairs a face + voice. You can customise both after.
-        </p>
-      </div>
-    </div>
-  )
-}
-
 /* ── Voice override confirmation dialog ── */
-function VoiceOverrideDialog({ avatar, currentVoice, onConfirm, onCancel }: {
+function VoiceOverrideDialog({ avatar, newVoice, currentVoice, onConfirm, onCancel }: {
   avatar: Avatar
+  newVoice: string
   currentVoice: string
   onConfirm: () => void
   onCancel: () => void
@@ -228,8 +120,8 @@ function VoiceOverrideDialog({ avatar, currentVoice, onConfirm, onCancel }: {
           <div className="flex flex-col gap-1">
             <div className="text-[13.5px] font-[600] text-neutral-900">Replace voice?</div>
             <p className="text-[12.5px] text-neutral-600 leading-5">
-              <span className="font-[500] text-neutral-900">{avatar.name}</span> is paired with{' '}
-              <span className="font-[500] text-neutral-900">{avatar.pairedVoice}</span>.
+              Applying <span className="font-[500] text-neutral-900">{avatar.name}</span> with{' '}
+              <span className="font-[500] text-neutral-900">{newVoice}</span>.
               This will replace your current voice{' '}
               <span className="font-[500] text-neutral-900">({currentVoice})</span>.
             </p>
@@ -261,31 +153,35 @@ function VoiceOverrideDialog({ avatar, currentVoice, onConfirm, onCancel }: {
 function AvatarSection() {
   const navigate = useNavigate()
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null)
-  const [pendingAvatar, setPendingAvatar] = useState<Avatar | null>(null)
+  // Voice the user actually picked (may differ from the avatar's paired voice).
+  const [selectedVoice, setSelectedVoice] = useState<string>(CURRENT_VOICE)
+  const [pending, setPending] = useState<{ avatar: Avatar; voiceLabel: string } | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [currentVoice, setCurrentVoice] = useState(CURRENT_VOICE)
 
-  function handleConfirmFromModal(avatar: Avatar) {
+  function handleConfirmFromModal(avatar: Avatar, voiceLabel: string) {
     setModalOpen(false)
-    if (avatar.pairedVoice !== currentVoice) {
-      setPendingAvatar(avatar)
+    if (voiceLabel !== currentVoice) {
+      setPending({ avatar, voiceLabel })
     } else {
       setSelectedAvatar(avatar)
+      setSelectedVoice(voiceLabel)
     }
   }
 
   function confirmOverride() {
-    if (!pendingAvatar) return
-    setCurrentVoice(pendingAvatar.pairedVoice)
-    setSelectedAvatar(pendingAvatar)
-    setPendingAvatar(null)
+    if (!pending) return
+    setCurrentVoice(pending.voiceLabel)
+    setSelectedAvatar(pending.avatar)
+    setSelectedVoice(pending.voiceLabel)
+    setPending(null)
   }
 
   return (
     <div className="flex flex-col gap-[17px]">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
         <SectionHeading>Avatar</SectionHeading>
-        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-brand-tint text-brand font-[600] tracking-wide uppercase">Beta</span>
+        <span className="inline-flex items-center h-5 px-2 rounded-full bg-neutral-900 text-white text-[11px] font-[500] leading-none">New</span>
       </div>
 
       {/* Field trigger — opens the picker modal */}
@@ -295,22 +191,37 @@ function AvatarSection() {
       >
         {selectedAvatar ? (
           <>
-            <span className="text-base leading-none">{selectedAvatar.emoji}</span>
+            {selectedAvatar.imageUrl
+              ? <img src={selectedAvatar.imageUrl} alt={selectedAvatar.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+              : <span className="text-base leading-none">{selectedAvatar.emoji}</span>}
             <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-900 truncate">
               {selectedAvatar.name} — {selectedAvatar.role}
             </span>
           </>
         ) : (
-          <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-500 truncate">
-            No avatar selected
-          </span>
+          <>
+            {/* Stacked faces hint that a gallery is one click away */}
+            <span className="flex items-center -space-x-1.5 shrink-0">
+              {AVATARS.filter(a => a.imageUrl).slice(0, 3).map(a => (
+                <img
+                  key={a.id}
+                  src={a.imageUrl}
+                  alt=""
+                  className="w-[18px] h-[18px] rounded-full object-cover ring-[1.5px] ring-bg-control"
+                />
+              ))}
+            </span>
+            <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-500 truncate">
+              Select an avatar
+            </span>
+          </>
         )}
         <ChevronDown size={16} strokeWidth={1.33} className="text-neutral-900 shrink-0" />
       </button>
 
       {selectedAvatar ? (
         <p className="text-[11.3px] text-neutral-600 leading-4">
-          Voice: {selectedAvatar.pairedVoice}
+          Voice: {selectedVoice}
         </p>
       ) : (
         <p className="text-[11.3px] text-neutral-500 leading-4">
@@ -329,12 +240,13 @@ function AvatarSection() {
         onConfirm={handleConfirmFromModal}
       />
 
-      {pendingAvatar && (
+      {pending && (
         <VoiceOverrideDialog
-          avatar={pendingAvatar}
+          avatar={pending.avatar}
+          newVoice={pending.voiceLabel}
           currentVoice={currentVoice}
           onConfirm={confirmOverride}
-          onCancel={() => setPendingAvatar(null)}
+          onCancel={() => setPending(null)}
         />
       )}
     </div>
@@ -377,61 +289,6 @@ function RightColumnCurrent({ languageDetection, setLanguageDetection }: {
         onClose={() => setPickerOpen(false)}
         onSelect={setVoice}
       />
-    </div>
-  )
-}
-
-/* ── Right column: V1 — Persona card replaces Voice & Language ── */
-function RightColumnV1({ languageDetection, setLanguageDetection }: {
-  languageDetection: boolean
-  setLanguageDetection: (v: boolean) => void
-}) {
-  const [personaId, setPersonaId] = useState<PersonaId>('skylar')
-  return (
-    <div className="flex flex-col gap-8 pt-2 min-w-0">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <SectionHeading>Persona</SectionHeading>
-          <span className="text-[11px] px-1.5 py-0.5 rounded bg-brand-tint text-brand font-[500]">New</span>
-        </div>
-        <PersonaCard personaId={personaId} onClick={() => {
-          const next = PERSONAS[(PERSONAS.findIndex(p => p.id === personaId) + 1) % PERSONAS.length]
-          setPersonaId(next.id)
-        }} />
-        <p className="text-[11px] text-neutral-400 leading-4">Face + voice are paired. Switching persona updates both.</p>
-      </div>
-      <RightColumnASR languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} />
-      <RightColumnBgSound />
-    </div>
-  )
-}
-
-/* ── Right column: V2 — Persona card + picker sheet ── */
-function RightColumnV2({ languageDetection, setLanguageDetection }: {
-  languageDetection: boolean
-  setLanguageDetection: (v: boolean) => void
-}) {
-  const [personaId, setPersonaId] = useState<PersonaId>('skylar')
-  const [sheetOpen, setSheetOpen] = useState(false)
-  return (
-    <div className="flex flex-col gap-8 pt-2 min-w-0">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <SectionHeading>Persona</SectionHeading>
-          <span className="text-[11px] px-1.5 py-0.5 rounded bg-brand-tint text-brand font-[500]">New</span>
-        </div>
-        <PersonaCard personaId={personaId} onClick={() => setSheetOpen(true)} />
-        <p className="text-[11px] text-neutral-400 leading-4">Face + voice are paired. Switching persona updates both.</p>
-      </div>
-      <RightColumnASR languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} />
-      <RightColumnBgSound />
-      {sheetOpen && (
-        <PersonaPickerSheet
-          selected={personaId}
-          onSelect={setPersonaId}
-          onClose={() => setSheetOpen(false)}
-        />
-      )}
     </div>
   )
 }
@@ -483,7 +340,6 @@ function RightColumnBgSound() {
 }
 
 export function AgentConfigurationTab() {
-  const [variation, setVariation] = useState<Variation>('current')
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
   const [initialMessage, setInitialMessage] = useState(DEFAULT_INITIAL_MESSAGE)
   const [skipIntro, setSkipIntro] = useState(false)
@@ -492,31 +348,15 @@ export function AgentConfigurationTab() {
   return (
     <div className="flex flex-col gap-4">
 
-      {/* Header with variation switcher */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-[19px] font-[600] text-neutral-900 leading-7">Configuration</h3>
-        <div className="flex items-center gap-1 p-0.5 rounded-[8px] bg-neutral-100 border border-neutral-200">
-          {(['current', 'v1', 'v2'] as Variation[]).map(v => (
-            <button
-              key={v}
-              onClick={() => setVariation(v)}
-              className={cn(
-                'px-2.5 py-1 rounded-[6px] text-[11.5px] font-[500] cursor-pointer transition-colors',
-                variation === v
-                  ? 'bg-white text-neutral-900 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              )}
-            >
-              {v === 'current' ? 'Current' : v === 'v1' ? 'Persona V1' : 'Persona V2'}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Two-column grid (Figma 56:1398) */}
       <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-8 items-start">
 
-        {/* ── Left column (unchanged across all variations) ── */}
+        {/* ── Left column ── */}
         <div className="flex flex-col gap-8 min-w-0">
 
           {/* System Prompt */}
@@ -562,16 +402,8 @@ export function AgentConfigurationTab() {
           </div>
         </div>
 
-        {/* ── Right column — switches by variation ── */}
-        {variation === 'current' && (
-          <RightColumnCurrent languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} />
-        )}
-        {variation === 'v1' && (
-          <RightColumnV1 languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} />
-        )}
-        {variation === 'v2' && (
-          <RightColumnV2 languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} />
-        )}
+        {/* ── Right column ── */}
+        <RightColumnCurrent languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} />
       </div>
     </div>
   )

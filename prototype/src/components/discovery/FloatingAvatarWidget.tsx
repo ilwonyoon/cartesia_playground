@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { Volume2, VolumeX, X } from 'lucide-react'
 import { AnamPreview } from '../avatar/AnamPreview'
+import { GlassPill } from '../ui/GlassPill'
 import { FACE_AGENT_GREETING } from './avatarGreeting'
 
 const COVER = '/cartesia_cover.webp'
@@ -72,13 +73,13 @@ export function FloatingAvatarWidget({ onOpenModal, hidden = false }: FloatingAv
           </button>
         </div>
 
-        {/* CTA pill — bottom */}
+        {/* CTA pill — bottom (click is delegated to the card) */}
         <div className="absolute bottom-0 left-0 right-0 px-3 pb-4 pt-8 bg-gradient-to-t from-black/30 to-transparent pointer-events-none">
-          <div className="flex items-center justify-center gap-2 h-9 px-4 rounded-full bg-white/50 backdrop-blur-[2.5px] border border-white/20">
+          <GlassPill tabIndex={-1} className="w-full">
             <span className="text-[13px] font-[500] text-black/70 tracking-[-0.26px] whitespace-nowrap">
               Talk with agent
             </span>
-          </div>
+          </GlassPill>
         </div>
       </div>
     </div>
