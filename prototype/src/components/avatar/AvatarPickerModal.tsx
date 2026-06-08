@@ -31,9 +31,11 @@ const VOICE_LANGUAGE_OPTIONS = VOICE_LANGUAGES.map(l => ({ value: l, label: l })
 const VOICE_ACCENT_OPTIONS = VOICE_ACCENTS.map(a => ({ value: a, label: a }))
 
 /* The analysis scan plays once per page session — reopening lands on the
-   result. Module-level so it survives the modal unmounting on close. */
-let hasPlayedAnalysis = false
-export function resetAvatarAnalysis() { hasPlayedAnalysis = false }
+   result. sessionStorage survives HMR reloads (unlike module-level vars). */
+const ANALYSIS_KEY = 'avatarAnalysisPlayed'
+function hasPlayedAnalysis() { return sessionStorage.getItem(ANALYSIS_KEY) === '1' }
+function markAnalysisPlayed() { sessionStorage.setItem(ANALYSIS_KEY, '1') }
+export function resetAvatarAnalysis() { sessionStorage.removeItem(ANALYSIS_KEY) }
 
 /* ── AvatarPickerModal ─────────────────────────────────────────────
    Two-panel popup for composing a face + voice for a voice agent.
@@ -160,8 +162,7 @@ export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarI
       setPreviewId(seedId)
       setVoiceLabel(currentVoice)
       setMode('avatar')
-      // Only trigger analysis on the very first open ever (module-level flag).
-      if (!hasPlayedAnalysis) setAnalyzing(true)
+      if (!hasPlayedAnalysis()) setAnalyzing(true)
       requestAnimationFrame(() => setVisible(true))
     })
     return () => cancelAnimationFrame(raf)
@@ -351,7 +352,7 @@ export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarI
                 <AvatarAnalysis
                   voiceName={voiceObj?.name ?? currentVoice}
 
-                  onDone={() => { hasPlayedAnalysis = true; setAnalyzing(false) }}
+                  onDone={() => { markAnalysisPlayed(); setAnalyzing(false) }}
                 />
               ) : (
                 <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4 scrollbar-none">

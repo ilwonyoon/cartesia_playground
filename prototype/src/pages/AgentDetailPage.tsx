@@ -268,7 +268,7 @@ function WebPreview() {
 
         {/* Floating widget — bottom-right, same shape as the live one */}
         <div className="absolute bottom-4 right-4" style={{ width: 132 }}>
-          <button
+          <div
             onClick={() => setOpen(true)}
             className="block w-full rounded-[18px] overflow-hidden cursor-pointer shadow-[0px_4px_8px_rgba(0,0,0,0.08),0px_14px_14px_rgba(0,0,0,0.07)] transition-transform hover:scale-[1.02]"
           >
@@ -279,7 +279,7 @@ function WebPreview() {
               showCoverArt={false}
               className="!aspect-[3/4] rounded-none"
             />
-          </button>
+          </div>
           <p className="mt-2 text-[11px] text-neutral-500 leading-4 text-center">Click to talk</p>
         </div>
       </div>

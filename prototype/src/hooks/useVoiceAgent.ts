@@ -191,18 +191,23 @@ export function useVoiceAgent(): VoiceAgentState {
         } catch { /* non-fatal */ }
       })()
 
-      setCallState('active')
+      // 4. Microphone — request before going active so a denial aborts cleanly
+      let stream: MediaStream
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { sampleRate: MIC_SAMPLE_RATE, channelCount: 1, echoCancellation: true, noiseSuppression: true },
+        })
+      } catch {
+        throw new Error('Microphone access denied. Allow microphone in your browser settings and try again.')
+      }
 
-      // 4. Microphone → STT + amplitude tracking
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { sampleRate: MIC_SAMPLE_RATE, channelCount: 1, echoCancellation: true, noiseSuppression: true },
-      })
-      mediaStreamRef.current = stream
+      setCallState('active')
+      mediaStreamRef.current = stream!
 
       const micCtx = new AudioContext({ sampleRate: MIC_SAMPLE_RATE })
       micCtxRef.current = micCtx
       if (micCtx.state === 'suspended') await micCtx.resume()
-      const micSource = micCtx.createMediaStreamSource(stream)
+      const micSource = micCtx.createMediaStreamSource(stream!)
 
       const processor = micCtx.createScriptProcessor(2048, 1, 1)
       processorRef.current = processor
@@ -242,7 +247,9 @@ export function useVoiceAgent(): VoiceAgentState {
     return () => clearInterval(id)
   }, [])
 
-  useEffect(() => () => cleanup(), [cleanup])
+  const cleanupRef = useRef(cleanup)
+  useEffect(() => { cleanupRef.current = cleanup }, [cleanup])
+  useEffect(() => () => cleanupRef.current(), [])
 
   return { callState, talkState, agentAmplitude, userAmplitude, error, startCall, endCall, toggleMute, muted }
 }
