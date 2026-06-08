@@ -9,7 +9,7 @@
  *     Local prototyping only — production uses server-minted session tokens.
  */
 import { useEffect, useId, useRef, useState } from 'react'
-import { Loader2, AlertCircle, Mic, MicOff, Play } from 'lucide-react'
+import { Loader2, AlertCircle, Mic, MicOff, Play, Square } from 'lucide-react'
 import { GlassPill } from '../ui/GlassPill'
 
 const API_KEY    = import.meta.env.VITE_ANAM_API_KEY    as string | undefined
@@ -183,7 +183,7 @@ export function AnamPreview({
         )}
       </div>
 
-      {/* Manual-start poster — still image + Play button, no stream until clicked */}
+      {/* Manual-start poster — still image + Preview button, no stream until clicked */}
       {manualStart && !armed && (
         <div className="absolute inset-0">
           {posterUrl
@@ -191,9 +191,9 @@ export function AnamPreview({
             : <div className="absolute inset-0 bg-neutral-900" />}
           <div className="absolute inset-0 bg-black/15" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <GlassPill onClick={() => setArmed(true)} aria-label="Play preview" className="h-10 pl-4 pr-5">
+            <GlassPill onClick={() => setArmed(true)} aria-label="Play" className="h-10 pl-4 pr-5">
               <Play size={15} className="fill-black/70 text-black/70" />
-              <span className="text-[13px] font-[600] text-black/70">Play preview</span>
+              <span className="text-[13px] font-[600] text-black/70">Play</span>
             </GlassPill>
           </div>
         </div>
@@ -205,15 +205,23 @@ export function AnamPreview({
           <p className="text-white/60 text-[13px]">{error}</p>
         </div>
       )}
-      {/* Live HUD — left: connection state, right: mic state. Shown for the
-          whole call so the user can see they're connected and being heard. */}
+      {/* Live HUD — left: Live + Stop, right: mic state */}
       {status === 'live' && (
-        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-3 pointer-events-none bg-gradient-to-t from-black/40 to-transparent">
-          <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-light animate-pulse" />
-            <span className="text-[11px] text-white/80 font-[500]">Live</span>
-          </span>
-          <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10">
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-3 bg-gradient-to-t from-black/40 to-transparent">
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 pointer-events-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-light animate-pulse" />
+              <span className="text-[11px] text-white/80 font-[500]">Live</span>
+            </span>
+            <button
+              onClick={() => { setArmed(false); setStatus('idle'); setGreetingDone(false) }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 hover:bg-black/60 cursor-pointer transition-colors"
+            >
+              <Square size={10} className="fill-white/70 text-white/70" />
+              <span className="text-[11px] text-white/80 font-[500]">Stop</span>
+            </button>
+          </div>
+          <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 pointer-events-none">
             {micOn ? <Mic size={12} className="text-brand-light" /> : <MicOff size={12} className="text-white/40" />}
             <span className="text-[11px] text-white/80 font-[500]">{micOn ? 'Mic on' : 'Mic off'}</span>
           </span>

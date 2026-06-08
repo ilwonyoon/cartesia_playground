@@ -36,14 +36,27 @@ export type VoiceTabKey = 'Featured' | 'All voices' | 'My voices' | 'Saved'
 export const VOICE_TABS: VoiceTabKey[] = ['Featured', 'All voices', 'My voices', 'Saved']
 export type GenderFilter = 'Any gender' | 'Feminine' | 'Masculine'
 
+/** Distinct languages present in the catalog (for the Language filter). */
+export const VOICE_LANGUAGES: string[] = [...new Set(VOICES.map(v => v.language))]
+/** Distinct non-empty accents present in the catalog (for the Accent filter). */
+export const VOICE_ACCENTS: string[] = [...new Set(VOICES.map(v => v.accent).filter(Boolean))]
+
 export function filterVoices(
   voices: Voice[],
-  { search, gender, tab }: { search: string; gender: GenderFilter; tab: VoiceTabKey },
+  { search, gender, tab, language = null, accent = null }: {
+    search: string
+    gender: GenderFilter
+    tab: VoiceTabKey
+    language?: string | null
+    accent?: string | null
+  },
 ): Voice[] {
   return voices.filter(v => {
     const matchesSearch = (v.name + v.tag + v.desc).toLowerCase().includes(search.toLowerCase())
     const matchesGender = gender === 'Any gender' || v.gender === gender
     const matchesTab = tab === 'Saved' ? !!v.saved : true
-    return matchesSearch && matchesGender && matchesTab
+    const matchesLanguage = !language || v.language === language
+    const matchesAccent = !accent || v.accent === accent
+    return matchesSearch && matchesGender && matchesTab && matchesLanguage && matchesAccent
   })
 }

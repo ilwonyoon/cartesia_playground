@@ -200,7 +200,7 @@ function AvatarSection({ systemPrompt, initialMessage, selectedAvatar, onSelectA
                 />
               ))}
             </span>
-            <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-500 truncate">
+            <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-900 truncate">
               Select an avatar
             </span>
           </>

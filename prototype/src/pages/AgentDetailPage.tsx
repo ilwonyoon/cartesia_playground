@@ -8,6 +8,7 @@ import { AgentConfigurationTab } from './AgentConfigurationTab'
 import { useVoiceAgent } from '../hooks/useVoiceAgent'
 import { AnamPreview } from '../components/avatar/AnamPreview'
 import { CodeBlock } from '../components/ui/CodeBlock'
+import { getRecommendedFaces } from '../data/avatars'
 import type { Avatar } from '../data/avatars'
 
 /* ── Agent detail (Figma 56:1715 / structural ref 77:550) ─────────────
@@ -607,7 +608,7 @@ export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
   /* Avatar selection is owned here so it flows to the Widget tab, the Live-on
      status, and the Preview default — a face on the agent lights up its web
      surface. Picked in the Configuration tab's Avatar section. */
-  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null)
+  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(() => getRecommendedFaces()[0] ?? null)
   const hasFace = !!selectedAvatar
   /* This agent already has a live phone number, so the header shows the
      number + Call▾ (not "Get Phone Number"). */

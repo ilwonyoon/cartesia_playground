@@ -1,19 +1,38 @@
 import { useState, useEffect } from 'react'
-import { X, Check, ChevronDown } from 'lucide-react'
+import { X, ChevronDown } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { AnamPreview } from './AnamPreview'
 import { VideoPreview } from './VideoPreview'
+import { AvatarAnalysis } from './AvatarAnalysis'
 import {
-  AVATARS, INDUSTRY_ORDER, getRecommendedFaces, sortByLivePreview,
+  AVATARS, getRecommendedFaces, sortByLivePreview, filterFaces, FACE_STYLES,
   previewGreeting,
   type Avatar,
 } from '../../data/avatars'
 import { VoiceRow } from '../voice/VoiceRow'
 import { SearchField } from '../ui/SearchField'
+import { FilterDropdown } from '../ui/FilterDropdown'
 import {
-  VOICES, filterVoices,
+  VOICES, VOICE_LANGUAGES, VOICE_ACCENTS, filterVoices,
   type GenderFilter,
 } from '../../data/voices'
+
+/* Filter options for the Face / Voice tabs — derived from the catalogs. */
+const FACE_GENDER_OPTIONS = [
+  { value: 'Female', label: 'Female' },
+  { value: 'Male', label: 'Male' },
+]
+const FACE_STYLE_OPTIONS = FACE_STYLES.map(s => ({ value: s, label: s }))
+const VOICE_GENDER_OPTIONS = [
+  { value: 'Feminine', label: 'Feminine' },
+  { value: 'Masculine', label: 'Masculine' },
+]
+const VOICE_LANGUAGE_OPTIONS = VOICE_LANGUAGES.map(l => ({ value: l, label: l }))
+const VOICE_ACCENT_OPTIONS = VOICE_ACCENTS.map(a => ({ value: a, label: a }))
+
+/* The analysis scan plays once per page session — reopening lands on the
+   result. Module-level so it survives the modal unmounting on close. */
+let hasPlayedAnalysis = false
 
 /* ── AvatarPickerModal ─────────────────────────────────────────────
    Two-panel popup for composing a face + voice for a voice agent.
@@ -27,7 +46,6 @@ import {
    set; the face whose paired voice matches the agent voice is Recommended. */
 
 type Mode = 'avatar' | 'face' | 'voice'
-type FaceTab = 'Recommended' | Avatar['industry']
 
 interface AvatarPickerModalProps {
   open: boolean
@@ -36,6 +54,10 @@ interface AvatarPickerModalProps {
   selectedAvatarId?: string
   /** Confirm with the chosen face and the (possibly overridden) voice label. */
   onConfirm: (avatar: Avatar, voiceLabel: string) => void
+  /** Agent's system prompt — passed through to the Anam live preview session. */
+  systemPrompt?: string
+  /** Agent's initial message — used as the greeting for the live preview. */
+  initialMessage?: string
 }
 
 /* Face thumbnail — real image when available, else an emoji chip. */
@@ -57,8 +79,8 @@ function AvatarCard({ avatar, active, recommended, showVoice, voiceLabel, onClic
     <button
       onClick={onClick}
       className={cn(
-        'group relative flex flex-col rounded-[12px] overflow-hidden border bg-white text-left transition-all cursor-pointer',
-        active ? 'border-brand' : 'border-border-default hover:border-neutral-400',
+        'group relative flex flex-col rounded-[12px] overflow-hidden border bg-bg-control text-left transition-all cursor-pointer',
+        active ? 'border-2 border-brand' : 'border border-border-default hover:border-neutral-400',
       )}
     >
       <div className="relative w-full aspect-[4/5]">
@@ -68,15 +90,10 @@ function AvatarCard({ avatar, active, recommended, showVoice, voiceLabel, onClic
             Recommended
           </span>
         )}
-        {active && (
-          <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-brand flex items-center justify-center shadow-sm">
-            <Check size={12} className="text-white" strokeWidth={3} />
-          </span>
-        )}
       </div>
       <div className="px-2.5 py-2 border-t border-border-default/60">
         <div className="text-[12.5px] font-[600] text-neutral-900 truncate leading-tight">{avatar.name}</div>
-        <div className="text-[11.5px] text-neutral-600 truncate">{avatar.role}</div>
+        <div className="text-[11.5px] text-neutral-900 truncate">{avatar.role}</div>
         {showVoice && (
           <div className="text-[11px] text-neutral-500 truncate mt-0.5">{voiceLabel}</div>
         )}
@@ -105,20 +122,32 @@ function PickerChip({ lead, value, active, onClick }: {
   )
 }
 
-export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarId, onConfirm }: AvatarPickerModalProps) {
+export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarId, onConfirm, systemPrompt, initialMessage }: AvatarPickerModalProps) {
   const recommendedFaces = getRecommendedFaces()
   const recommended = recommendedFaces[0]
   const recommendedIds = new Set(recommendedFaces.map(a => a.id))
 
   const [visible, setVisible] = useState(false)
   const [mode, setMode] = useState<Mode>('avatar')
-  const [faceTab, setFaceTab] = useState<FaceTab>('Recommended')
   const [previewId, setPreviewId] = useState<string>(selectedAvatarId ?? recommended?.id ?? AVATARS[0].id)
   const [voiceLabel, setVoiceLabel] = useState<string>(currentVoice)
-  // Voice-mode controls
+  // Avatar-tab "All avatars" controls — filter the full grid only; the
+  // recommended three above stay a fixed curation.
+  const [allSearch, setAllSearch] = useState('')
+  const [allGender, setAllGender] = useState<string | null>(null)
+  const [allStyle, setAllStyle] = useState<string | null>(null)
+  // Face-tab controls (search + dropdown filters over all faces)
+  const [faceSearch, setFaceSearch] = useState('')
+  const [faceGender, setFaceGender] = useState<string | null>(null)
+  const [faceStyle, setFaceStyle] = useState<string | null>(null)
+  // Voice-tab controls
   const [voiceSearch, setVoiceSearch] = useState('')
-  const [voiceGender, setVoiceGender] = useState<GenderFilter>('Any gender')
+  const [voiceGender, setVoiceGender] = useState<string | null>(null)
+  const [voiceLanguage, setVoiceLanguage] = useState<string | null>(null)
+  const [voiceAccent, setVoiceAccent] = useState<string | null>(null)
   const [voicePlaying, setVoicePlaying] = useState<string | null>(null)
+  // First-open analysis scan (Avatar tab) — gated by the module flag.
+  const [analyzing, setAnalyzing] = useState(false)
 
   useEffect(() => {
     const seedId = selectedAvatarId ?? recommended?.id ?? AVATARS[0].id
@@ -127,7 +156,7 @@ export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarI
         setPreviewId(seedId)
         setVoiceLabel(currentVoice)
         setMode('avatar')
-        setFaceTab('Recommended')
+        setAnalyzing(!hasPlayedAnalysis)
       }
       requestAnimationFrame(() => setVisible(open))
     })
@@ -145,21 +174,31 @@ export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarI
 
   const previewAvatar = AVATARS.find(a => a.id === previewId) ?? AVATARS[0]
 
-  // Recommended tab keeps the agent's CURRENT voice (face-only swap); other
-  // tabs adopt the face's own paired voice.
-  function pickFace(a: Avatar) {
+  // Recommended picks keep the agent's CURRENT voice (face-only swap); picking
+  // from the full grid / Face tab adopts the face's own paired voice.
+  function pickFace(a: Avatar, keepVoice: boolean) {
     setPreviewId(a.id)
-    setVoiceLabel(faceTab === 'Recommended' ? currentVoice : a.pairedVoice)
+    setVoiceLabel(keepVoice ? currentVoice : a.pairedVoice)
   }
 
-  const presentIndustries = INDUSTRY_ORDER.filter(ind => AVATARS.some(a => a.industry === ind))
-  const faceTabs: FaceTab[] = ['Recommended', ...presentIndustries]
-  const onRecommendedTab = faceTab === 'Recommended'
-  // Recommended → curated 3; industry tab → that industry, live faces first.
-  const visibleAvatars = onRecommendedTab
-    ? recommendedFaces
-    : sortByLivePreview(AVATARS.filter(a => a.industry === faceTab))
-  const filteredVoices = filterVoices(VOICES, { search: voiceSearch, gender: voiceGender, tab: 'Featured' })
+  const recommendedId = recommended?.id
+  // Avatar tab: curated 3 up top, then everything else (live faces first),
+  // narrowed by the "All avatars" search + gender/style filters.
+  const restAvatars = filterFaces(
+    sortByLivePreview(AVATARS.filter(a => !recommendedIds.has(a.id))),
+    { search: allSearch, gender: allGender, style: allStyle },
+  )
+  // Face tab: all faces through the search + dropdown filters.
+  const filteredFaces = filterFaces(sortByLivePreview(AVATARS), {
+    search: faceSearch, gender: faceGender, style: faceStyle,
+  })
+  const filteredVoices = filterVoices(VOICES, {
+    search: voiceSearch,
+    gender: (voiceGender ?? 'Any gender') as GenderFilter,
+    tab: 'Featured',
+    language: voiceLanguage,
+    accent: voiceAccent,
+  })
   const voiceObj = VOICES.find(v => `${v.name} - ${v.tag}` === voiceLabel)
 
   const MODES: { key: Mode; label: string }[] = [
@@ -200,75 +239,86 @@ export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarI
           {/* Left — preview. Real Anam persona → live call (greeting + mic).
               No persona but a clip → local mp4. Otherwise a still. */}
           <div className="w-[52%] max-w-[500px] flex flex-col p-5 gap-4 border-r border-border-default shrink-0">
-            <div className="rounded-[14px] overflow-hidden bg-neutral-900 shadow-sm">
-              {previewAvatar.anamPersonaId ? (
-                <AnamPreview
-                  key={previewAvatar.id}
-                  avatarId={previewAvatar.anamPersonaId}
-                  greeting={previewGreeting(previewAvatar)}
-                  systemPrompt={previewAvatar.systemPrompt}
-                  micEnabled
-                  showCoverArt={false}
-                  manualStart
-                  posterUrl={previewAvatar.imageUrl}
-                />
-              ) : previewAvatar.videoUrl ? (
-                <VideoPreview
-                  key={previewAvatar.id}
-                  posterUrl={previewAvatar.imageUrl}
-                  videoUrl={previewAvatar.videoUrl}
-                />
-              ) : (
-                /* No persona or clip — show the still image */
-                <div className="relative aspect-video">
-                  {previewAvatar.imageUrl
-                    ? <img src={previewAvatar.imageUrl} alt={previewAvatar.name} className="absolute inset-0 w-full h-full object-cover" />
-                    : <div className="absolute inset-0 bg-neutral-900" />}
-                  <div className="absolute bottom-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/40 backdrop-blur-sm">
-                    <span className="text-[10.5px] text-white/80 font-[500]">Preview unavailable</span>
-                  </div>
+            {analyzing ? (
+              /* Skeleton — whole left panel while analysis plays */
+              <>
+                <div className="rounded-[14px] aspect-video bg-neutral-200" />
+                <div className="flex items-stretch gap-2">
+                  <div className="flex-1 h-[34px] rounded-control bg-neutral-200" />
+                  <div className="flex-1 h-[34px] rounded-control bg-neutral-200" />
                 </div>
-              )}
-            </div>
+                <div className="h-3 w-3/4 rounded bg-neutral-200" />
+                <div className="mt-auto h-9 rounded-control bg-neutral-200" />
+              </>
+            ) : (
+              <>
+                <div className="rounded-[14px] overflow-hidden bg-neutral-900 shadow-sm">
+                  {previewAvatar.anamPersonaId ? (
+                    <AnamPreview
+                      key={previewAvatar.id}
+                      avatarId={previewAvatar.anamPersonaId}
+                      greeting={initialMessage ?? previewGreeting(previewAvatar)}
+                      systemPrompt={
+                        systemPrompt
+                          ? systemPrompt + (previewAvatar.systemPrompt ? `\n\n${previewAvatar.systemPrompt}` : '')
+                          : previewAvatar.systemPrompt
+                      }
+                      micEnabled
+                      showCoverArt={false}
+                      manualStart
+                      posterUrl={previewAvatar.imageUrl}
+                    />
+                  ) : previewAvatar.videoUrl ? (
+                    <VideoPreview
+                      key={previewAvatar.id}
+                      posterUrl={previewAvatar.imageUrl}
+                      videoUrl={previewAvatar.videoUrl}
+                    />
+                  ) : (
+                    <div className="relative aspect-video">
+                      {previewAvatar.imageUrl
+                        ? <img src={previewAvatar.imageUrl} alt={previewAvatar.name} className="absolute inset-0 w-full h-full object-cover" />
+                        : <div className="absolute inset-0 bg-neutral-900" />}
+                      <div className="absolute bottom-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/40 backdrop-blur-sm">
+                        <span className="text-[10.5px] text-white/80 font-[500]">Preview unavailable</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-            {/* Face / Voice pickers → switch right-panel mode (Voice & Language pattern) */}
-            <div className="flex items-stretch gap-2">
-              <PickerChip
-                lead={<FaceThumb avatar={previewAvatar} className="w-5 h-5 rounded-full" />}
-                value={previewAvatar.name}
-                active={mode === 'face'}
-                onClick={() => setMode('face')}
-              />
-              <PickerChip
-                lead={<span className="text-[15px] leading-none">{voiceObj?.flag ?? '🌐'}</span>}
-                value={voiceLabel}
-                active={mode === 'voice'}
-                onClick={() => setMode('voice')}
-              />
-            </div>
+                <div className="flex items-stretch gap-2">
+                  <PickerChip
+                    lead={<FaceThumb avatar={previewAvatar} className="w-5 h-5 rounded-full" />}
+                    value={previewAvatar.name}
+                    active={mode === 'face'}
+                    onClick={() => setMode('face')}
+                  />
+                  <PickerChip
+                    lead={<span className="text-[15px] leading-none">{voiceObj?.flag ?? '🌐'}</span>}
+                    value={voiceLabel}
+                    active={mode === 'voice'}
+                    onClick={() => setMode('voice')}
+                  />
+                </div>
 
-            <p className="text-[12px] text-neutral-500 leading-4">
-              {mode === 'voice'
-                ? 'Pick a voice — the face stays. Press Play to preview.'
-                : mode === 'face'
-                  ? 'Pick a face — its paired voice comes along. Press Play to preview.'
-                  : 'Face, voice and tone are paired. Press Play to preview, then apply.'}
-            </p>
+                <p className="text-[12px] text-neutral-500 leading-4">
+                  {mode === 'voice'
+                    ? 'Pick a voice — the face stays. Press Play to preview.'
+                    : mode === 'face'
+                      ? 'Pick a face — its paired voice comes along. Press Play to preview.'
+                      : 'Face, voice and tone are paired. Press Play to preview, then apply.'}
+                </p>
 
-            <div className="mt-auto flex items-center gap-2">
-              <button
-                onClick={onClose}
-                className="flex-1 h-9 rounded-control border border-border-default bg-bg-control hover:bg-bg-control-hover text-[13px] font-[500] text-neutral-800 cursor-pointer transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => onConfirm(previewAvatar, voiceLabel)}
-                className="flex-1 h-9 rounded-control bg-brand text-white text-[13px] font-[500] hover:bg-brand-light cursor-pointer transition-colors"
-              >
-                Use this avatar
-              </button>
-            </div>
+                <div className="mt-auto">
+                  <button
+                    onClick={() => onConfirm(previewAvatar, voiceLabel)}
+                    className="w-full h-9 rounded-control bg-brand text-white text-[13px] font-[500] hover:bg-brand-light cursor-pointer transition-colors"
+                  >
+                    Preview
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Right — mode tabs + content */}
@@ -291,68 +341,113 @@ export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarI
               ))}
             </div>
 
-            {/* Avatar / Face: industry filter + face grid */}
-            {(mode === 'avatar' || mode === 'face') && (
-              <>
-                {/* Segmented control (Monthly/Annual pattern): active = white pill + shadow */}
-                <div className="mx-4 mt-3 mb-1 shrink-0 overflow-x-auto scrollbar-none">
-                  <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-neutral-200/70">
-                    {faceTabs.map(t => (
-                      <button
-                        key={t}
-                        onClick={() => setFaceTab(t)}
-                        className={cn(
-                          'h-7 px-3 rounded-full text-[12px] font-[500] whitespace-nowrap cursor-pointer transition-colors',
-                          faceTab === t
-                            ? 'bg-white text-neutral-900 shadow-sm'
-                            : 'text-neutral-600 hover:text-neutral-900',
-                        )}
-                      >
-                        {t}
-                      </button>
-                    ))}
+            {/* Avatar: first-open scan → recommended 3 + all avatars */}
+            {mode === 'avatar' && (
+              analyzing ? (
+                <AvatarAnalysis
+                  voiceName={voiceObj?.name ?? currentVoice}
+
+                  onDone={() => { hasPlayedAnalysis = true; setAnalyzing(false) }}
+                />
+              ) : (
+                <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4 scrollbar-none">
+                  {/* Recommended — curated picks that keep the agent's voice */}
+                  <div className="flex items-baseline justify-between mb-2.5">
+                    <h4 className="text-[13px] font-[600] text-neutral-900">Recommended for this agent</h4>
                   </div>
-                </div>
-                {onRecommendedTab && (
-                  <p className="px-4 pt-1.5 text-[11.5px] text-neutral-500 leading-4 shrink-0">
-                    Faces picked for this agent — <span className="text-neutral-700 font-[500]">keeps your current voice, just adds a face.</span>
-                  </p>
-                )}
-                <div className="flex-1 overflow-y-auto p-4 scrollbar-none">
                   <div className="grid grid-cols-3 gap-3">
-                    {visibleAvatars.map(avatar => (
+                    {recommendedFaces.map(avatar => (
                       <AvatarCard
                         key={avatar.id}
                         avatar={avatar}
                         active={previewId === avatar.id}
-                        // On the Recommended tab the tab itself signals it — badge only top pick.
-                        recommended={onRecommendedTab ? avatar.id === recommended?.id : recommendedIds.has(avatar.id)}
-                        showVoice={mode === 'avatar'}
-                        voiceLabel={onRecommendedTab ? currentVoice : avatar.pairedVoice}
-                        onClick={() => pickFace(avatar)}
+                        recommended={avatar.id === recommendedId}
+                        showVoice={false}
+                        voiceLabel={currentVoice}
+                        onClick={() => pickFace(avatar, true)}
                       />
                     ))}
                   </div>
+
+                  {/* All avatars — full catalog; picking one adopts its paired
+                      voice. Search + gender/style filter this grid only. */}
+                  <div className="flex items-center gap-3 mt-5 mb-2.5">
+                    <h4 className="text-[13px] font-[600] text-neutral-900 shrink-0">All avatars</h4>
+                    <span className="flex-1 h-px bg-border-default/70" />
+                  </div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <SearchField value={allSearch} onChange={setAllSearch} placeholder="Search avatars" shortcut={false} className="flex-1" />
+                    <FilterDropdown anyLabel="Any gender" options={FACE_GENDER_OPTIONS} value={allGender} onChange={setAllGender} />
+                    <FilterDropdown anyLabel="Any style" options={FACE_STYLE_OPTIONS} value={allStyle} onChange={setAllStyle} />
+                  </div>
+                  {restAvatars.length === 0 ? (
+                    <p className="py-8 text-center text-[12.5px] text-neutral-500">No avatars match these filters.</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3">
+                      {restAvatars.map(avatar => (
+                        <AvatarCard
+                          key={avatar.id}
+                          avatar={avatar}
+                          active={previewId === avatar.id}
+                          recommended={false}
+                          showVoice
+                          voiceLabel={avatar.pairedVoice}
+                          onClick={() => pickFace(avatar, false)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            )}
+
+            {/* Face: search + dropdown filters (gender / style) over all faces */}
+            {mode === 'face' && (
+              <>
+                <div className="px-4 pt-3 pb-2 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <SearchField value={faceSearch} onChange={setFaceSearch} placeholder="Search faces" shortcut={false} className="flex-1" />
+                    <FilterDropdown anyLabel="Any gender" options={FACE_GENDER_OPTIONS} value={faceGender} onChange={setFaceGender} />
+                    <FilterDropdown anyLabel="Any style" options={FACE_STYLE_OPTIONS} value={faceStyle} onChange={setFaceStyle} />
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-none">
+                  {filteredFaces.length === 0 ? (
+                    <p className="pt-8 text-center text-[12.5px] text-neutral-500">No faces match these filters.</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3">
+                      {filteredFaces.map(avatar => (
+                        <AvatarCard
+                          key={avatar.id}
+                          avatar={avatar}
+                          active={previewId === avatar.id}
+                          recommended={recommendedIds.has(avatar.id)}
+                          showVoice={false}
+                          voiceLabel={avatar.pairedVoice}
+                          onClick={() => pickFace(avatar, false)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
 
-            {/* Voice: search + compact voice list (independent of face) */}
+            {/* Voice: search + dropdown filters (gender / language / accent) */}
             {mode === 'voice' && (
               <>
                 <div className="px-4 pt-3 pb-2 shrink-0">
-                  <SearchField value={voiceSearch} onChange={setVoiceSearch} className="mb-2" />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setVoiceGender(g => g === 'Any gender' ? 'Feminine' : g === 'Feminine' ? 'Masculine' : 'Any gender')}
-                      className="flex items-center gap-1 h-7 px-3 rounded-full border border-border-default bg-bg-control hover:bg-bg-control-hover text-[12px] text-neutral-700 cursor-pointer transition-colors"
-                    >
-                      {voiceGender}
-                    </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <SearchField value={voiceSearch} onChange={setVoiceSearch} placeholder="Search voices" shortcut={false} className="flex-1 min-w-[160px]" />
+                    <FilterDropdown anyLabel="Any gender" options={VOICE_GENDER_OPTIONS} value={voiceGender} onChange={setVoiceGender} />
+                    <FilterDropdown anyLabel="Any language" options={VOICE_LANGUAGE_OPTIONS} value={voiceLanguage} onChange={setVoiceLanguage} />
+                    <FilterDropdown anyLabel="Any accent" options={VOICE_ACCENT_OPTIONS} value={voiceAccent} onChange={setVoiceAccent} searchable />
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 pb-3 scrollbar-none">
-                  {filteredVoices.map(voice => {
+                  {filteredVoices.length === 0 ? (
+                    <p className="pt-8 text-center text-[12.5px] text-neutral-500">No voices match these filters.</p>
+                  ) : filteredVoices.map(voice => {
                     const label = `${voice.name} - ${voice.tag}`
                     return (
                       <div key={voice.id} className="rounded-[10px]">
