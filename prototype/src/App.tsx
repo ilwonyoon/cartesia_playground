@@ -9,6 +9,8 @@ import { ButtonStateSandbox } from './pages/ButtonStateSandbox'
 import { AgentDetailPage } from './pages/AgentDetailPage'
 import { AvatarsPage } from './pages/AvatarsPage'
 import { OnboardingModal } from './components/discovery/OnboardingModal'
+import { resetAvatarAnalysis } from './components/avatar/AvatarPickerModal'
+import { getRecommendedFaces, type Avatar } from './data/avatars'
 
 /* URL path → sidebar label mapping (for active state) */
 const PATH_TO_LABEL: Record<string, string> = {
@@ -55,6 +57,12 @@ function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
+  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(() => getRecommendedFaces()[0] ?? null)
+
+  function handleResetDemo() {
+    setSelectedAvatar(null)
+    resetAvatarAnalysis()
+  }
 
   const activeLabel = location.pathname === '/' ? '__home'
     : PATH_TO_LABEL[location.pathname]
@@ -79,6 +87,7 @@ function AppShell() {
       <AppLayout
         active={activeLabel}
         onNavigate={handleNavigate}
+        onResetDemo={handleResetDemo}
         fullBleed={fullBleed}
         wide={wide}
       >
@@ -92,7 +101,11 @@ function AppShell() {
             />
           } />
           <Route path="/agents/:id" element={
-            <AgentDetailPage onBack={() => navigate('/agents')} />
+            <AgentDetailPage
+              onBack={() => navigate('/agents')}
+              selectedAvatar={selectedAvatar}
+              onSelectAvatar={setSelectedAvatar}
+            />
           } />
           <Route path="/avatars" element={<AvatarsPage />} />
           <Route path="/avatars/upload" element={<AvatarsPage initialTab="upload" />} />

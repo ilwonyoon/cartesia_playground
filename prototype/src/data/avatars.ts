@@ -9,6 +9,7 @@ export interface Avatar {
   id: string
   name: string
   role: string
+  expressionStyle?: string     // short descriptor shown in Recommended tab (e.g. "Warm & Approachable")
   industry: 'Finance' | 'Healthcare' | 'Government' | 'Sales' | 'Support' | 'General'
   gender: 'Female' | 'Male'
   pairedVoice: string          // display name of the paired Cartesia voice
@@ -36,6 +37,7 @@ export const AVATARS: Avatar[] = [
     id: 'skylar',
     name: 'Ava',
     role: 'Friendly Guide',
+    expressionStyle: 'Warm & Approachable',
     industry: 'General',
     gender: 'Female',
     pairedVoice: 'Skylar - Friendly Guide',
@@ -69,6 +71,7 @@ export const AVATARS: Avatar[] = [
     id: 'marcus',
     name: 'Theo',
     role: 'Healthcare Coordinator',
+    expressionStyle: 'Calm & Trustworthy',
     industry: 'Healthcare',
     gender: 'Male',
     pairedVoice: 'Daniel - Modern Assistant',
@@ -121,6 +124,7 @@ export const AVATARS: Avatar[] = [
     id: 'luna',
     name: 'Ivy',
     role: 'Customer Support',
+    expressionStyle: 'Confident & Clear',
     industry: 'Support',
     gender: 'Female',
     pairedVoice: 'Katie - Friendly Fixer',

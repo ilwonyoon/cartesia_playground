@@ -1,14 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   ChevronRight, ChevronDown, Phone, GitBranch,
-  ExternalLink, MoreVertical, X, Globe, Hash,
+  ExternalLink, MoreVertical, X, Globe, Hash, AlertCircle,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { AgentConfigurationTab } from './AgentConfigurationTab'
 import { useVoiceAgent } from '../hooks/useVoiceAgent'
 import { AnamPreview } from '../components/avatar/AnamPreview'
 import { CodeBlock } from '../components/ui/CodeBlock'
-import { getRecommendedFaces } from '../data/avatars'
 import type { Avatar } from '../data/avatars'
 
 /* ── Agent detail (Figma 56:1715 / structural ref 77:550) ─────────────
@@ -529,13 +528,17 @@ function ChannelChip({ icon, label }: { icon: React.ReactNode; label: string }) 
 }
 
 /* ── Web / Application embed section (Widget tab) ─────────────────────
-   Empty until an avatar is attached — the widget only makes sense with a
-   face. Once one is picked, shows the live preview + the embed snippet
-   (always re-copyable). Card sits on the control surface; only the snippet
-   code block stays white. */
-function WebEmbedSection({ avatar, onPickAvatar }: {
+   Empty until an avatar is attached. With a published avatar, shows the
+   live preview + a working embed snippet. With an unpublished (draft)
+   avatar, the preview still renders ("here's how it'll look") but the
+   snippet is gated behind Publish — it only goes live once published.
+   Card sits on the control surface; only the snippet code block stays white. */
+function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishing }: {
   avatar: Avatar | null
+  published: boolean
   onPickAvatar: () => void
+  onPublish: () => void
+  publishing: boolean
 }) {
   const snippet = `<script src="https://embed.cartesia.ai/v1.js"></script>
 <cartesia-agent
@@ -559,7 +562,7 @@ function WebEmbedSection({ avatar, onPickAvatar }: {
       </div>
 
       {avatar ? (
-        /* Body — live preview + embed snippet */
+        /* Body — live preview + embed snippet (gated until published) */
         <div className="px-5 py-5 flex gap-5">
           <div className="w-[150px] shrink-0">
             <AnamPreview
@@ -570,12 +573,41 @@ function WebEmbedSection({ avatar, onPickAvatar }: {
               showCoverArt={false}
               className="!aspect-[3/4] rounded-[12px]"
             />
-            <p className="mt-2 text-[11px] text-neutral-500 leading-4 text-center">Live preview</p>
+            <p className="mt-2 text-[11px] text-neutral-500 leading-4 text-center">
+              {published ? 'Live preview' : 'Preview'}
+            </p>
           </div>
 
           <div className="flex-1 min-w-0">
             <p className="text-[11.3px] font-[500] text-neutral-500 leading-4 mb-2">Embed snippet</p>
-            <CodeBlock code={snippet} />
+
+            {/* Draft banner — the snippet only works once the avatar is live. */}
+            {!published && (
+              <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2 rounded-[8px] border border-neutral-400 bg-neutral-200">
+                <span className="flex items-center gap-2 min-w-0">
+                  <AlertCircle size={15} strokeWidth={1.7} className="text-neutral-600 shrink-0" />
+                  <span className="text-[12px] text-neutral-700 leading-4">
+                    Publish to activate this embed on the web.
+                  </span>
+                </span>
+                <button
+                  onClick={onPublish}
+                  disabled={publishing}
+                  className={cn(
+                    'h-[26px] px-3 flex items-center gap-1.5 rounded-[6px] text-[12px] font-[500] shrink-0 transition-colors',
+                    publishing ? 'bg-brand text-white cursor-wait' : 'bg-brand text-white hover:bg-brand-light cursor-pointer',
+                  )}
+                >
+                  {publishing && <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                  {publishing ? 'Publishing…' : 'Publish'}
+                </button>
+              </div>
+            )}
+
+            {/* Snippet — dimmed + non-interactive until published. */}
+            <div className={cn(!published && 'opacity-50 pointer-events-none select-none')}>
+              <CodeBlock code={snippet} />
+            </div>
             <p className="mt-2 text-[11.5px] text-neutral-500 leading-4">
               Connects to <code className="font-mono text-[11px] text-neutral-600">wss://api.cartesia.ai/agents/stream/{AGENT.id.slice(0, 12)}…</code> with an access token minted server-side.
             </p>
@@ -602,18 +634,25 @@ function WebEmbedSection({ avatar, onPickAvatar }: {
   )
 }
 
-export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
+export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
+  onBack?: () => void
+  selectedAvatar?: Avatar | null
+  onSelectAvatar?: (avatar: Avatar | null) => void
+}) {
   const [activeTab, setActiveTab] = useState<Tab>('Configuration')
   const [previewOpen, setPreviewOpen] = useState(false)
-  /* Avatar selection is owned here so it flows to the Widget tab, the Live-on
-     status, and the Preview default — a face on the agent lights up its web
-     surface. Picked in the Configuration tab's Avatar section. */
-  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(() => getRecommendedFaces()[0] ?? null)
   const hasFace = !!selectedAvatar
   /* This agent already has a live phone number, so the header shows the
      number + Call▾ (not "Get Phone Number"). */
   const hasPhoneNumber = true
-  const hasDraft = true
+
+  /* Which avatar is live in production. The agent starts already published
+     with its current avatar; changing the avatar makes the config a draft
+     until Publish, which is what gates the embed snippet on the Widget tab —
+     the snippet only works once the avatar is actually live. */
+  const [publishedAvatarId, setPublishedAvatarId] = useState<string | null>(selectedAvatar?.id ?? null)
+  const avatarPublished = !!selectedAvatar && publishedAvatarId === selectedAvatar.id
+  const hasDraft = !avatarPublished
 
   /* Publish promotes the config to production. After the build "completes"
      we drop the user on the Widget tab when a face is attached — that's the
@@ -624,6 +663,7 @@ export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
     setPublishing(true)
     setTimeout(() => {
       setPublishing(false)
+      setPublishedAvatarId(selectedAvatar?.id ?? null)
       if (hasFace) setActiveTab('Widget')
     }, 1400)
   }
@@ -725,7 +765,7 @@ export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
         <div className="flex-1 min-w-0 overflow-auto">
           <div className="px-9 pt-6 max-w-[1200px] w-full mx-auto flex flex-col pb-12">
             {activeTab === 'Configuration' ? (
-              <AgentConfigurationTab selectedAvatar={selectedAvatar} onSelectAvatar={setSelectedAvatar} />
+              <AgentConfigurationTab selectedAvatar={selectedAvatar ?? null} onSelectAvatar={onSelectAvatar ?? (() => {})} />
             ) : activeTab === 'Deployment' ? (
               <>
                 {/* Production Version — read-only status of what's live. The
@@ -767,7 +807,7 @@ export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
                     <Field label="Live on">
                       <span className="flex items-center gap-1.5 flex-wrap">
                         <ChannelChip icon={<Phone size={11} strokeWidth={0} fill="currentColor" />} label={`Phone · ${AGENT.phoneNumber}`} />
-                        {hasFace && (
+                        {avatarPublished && (
                           <ChannelChip icon={<Globe size={11} strokeWidth={1.8} />} label="Web embed" />
                         )}
                       </span>
@@ -799,7 +839,13 @@ export function AgentDetailPage({ onBack }: { onBack?: () => void }) {
                     Embed your agent in a website or app. The snippet stays in sync with your published version.
                   </p>
                 </div>
-                <WebEmbedSection avatar={selectedAvatar} onPickAvatar={() => setActiveTab('Configuration')} />
+                <WebEmbedSection
+                  avatar={selectedAvatar ?? null}
+                  published={avatarPublished}
+                  onPickAvatar={() => setActiveTab('Configuration')}
+                  onPublish={handlePublish}
+                  publishing={publishing}
+                />
               </>
             ) : (
               <div className="py-16 flex items-center justify-center">

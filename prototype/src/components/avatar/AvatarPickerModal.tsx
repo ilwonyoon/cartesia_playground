@@ -33,6 +33,7 @@ const VOICE_ACCENT_OPTIONS = VOICE_ACCENTS.map(a => ({ value: a, label: a }))
 /* The analysis scan plays once per page session — reopening lands on the
    result. Module-level so it survives the modal unmounting on close. */
 let hasPlayedAnalysis = false
+export function resetAvatarAnalysis() { hasPlayedAnalysis = false }
 
 /* ── AvatarPickerModal ─────────────────────────────────────────────
    Two-panel popup for composing a face + voice for a voice agent.
@@ -72,8 +73,8 @@ function FaceThumb({ avatar, className }: { avatar: Avatar; className?: string }
   )
 }
 
-function AvatarCard({ avatar, active, recommended, showVoice, voiceLabel, onClick }: {
-  avatar: Avatar; active: boolean; recommended: boolean; showVoice: boolean; voiceLabel: string; onClick: () => void
+function AvatarCard({ avatar, active, recommended, showVoice, voiceLabel, roleOverride, onClick }: {
+  avatar: Avatar; active: boolean; recommended: boolean; showVoice: boolean; voiceLabel: string; roleOverride?: string; onClick: () => void
 }) {
   return (
     <button
@@ -93,7 +94,7 @@ function AvatarCard({ avatar, active, recommended, showVoice, voiceLabel, onClic
       </div>
       <div className="px-2.5 py-2 border-t border-border-default/60">
         <div className="text-[12.5px] font-[600] text-neutral-900 truncate leading-tight">{avatar.name}</div>
-        <div className="text-[11.5px] text-neutral-900 truncate">{avatar.role}</div>
+        <div className="text-[11.5px] text-neutral-900 truncate">{roleOverride ?? avatar.role}</div>
         {showVoice && (
           <div className="text-[11px] text-neutral-500 truncate mt-0.5">{voiceLabel}</div>
         )}
@@ -150,22 +151,25 @@ export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarI
   const [analyzing, setAnalyzing] = useState(false)
 
   useEffect(() => {
+    if (!open) {
+      requestAnimationFrame(() => setVisible(false))
+      return
+    }
     const seedId = selectedAvatarId ?? recommended?.id ?? AVATARS[0].id
     const raf = requestAnimationFrame(() => {
-      if (open) {
-        setPreviewId(seedId)
-        setVoiceLabel(currentVoice)
-        setMode('avatar')
-        setAnalyzing(!hasPlayedAnalysis)
-      }
-      requestAnimationFrame(() => setVisible(open))
+      setPreviewId(seedId)
+      setVoiceLabel(currentVoice)
+      setMode('avatar')
+      // Only trigger analysis on the very first open ever (module-level flag).
+      if (!hasPlayedAnalysis) setAnalyzing(true)
+      requestAnimationFrame(() => setVisible(true))
     })
     return () => cancelAnimationFrame(raf)
-  }, [open, selectedAvatarId, recommended?.id, currentVoice])
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onConfirm(previewAvatar, voiceLabel) }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
@@ -210,7 +214,7 @@ export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarI
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
       <div
-        onClick={onClose}
+        onClick={() => onConfirm(previewAvatar, voiceLabel)}
         className={cn(
           'absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity duration-200',
           visible ? 'opacity-100' : 'opacity-0',
@@ -227,7 +231,7 @@ export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarI
         <div className="flex items-center justify-between h-12 px-4 border-b border-border-default shrink-0">
           <span className="text-[15px] font-[500] text-[#39342f]">Choose an avatar</span>
           <button
-            onClick={onClose}
+            onClick={() => onConfirm(previewAvatar, voiceLabel)}
             className="w-7 h-7 flex items-center justify-center rounded-[7px] hover:bg-neutral-200 text-neutral-600 cursor-pointer transition-colors"
           >
             <X size={18} strokeWidth={1.75} />
@@ -364,6 +368,7 @@ export function AvatarPickerModal({ open, onClose, currentVoice, selectedAvatarI
                         recommended={avatar.id === recommendedId}
                         showVoice={false}
                         voiceLabel={currentVoice}
+                        roleOverride={avatar.expressionStyle}
                         onClick={() => pickFace(avatar, true)}
                       />
                     ))}
