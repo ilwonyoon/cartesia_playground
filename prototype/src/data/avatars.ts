@@ -129,8 +129,7 @@ export const AVATARS: Avatar[] = [
     bgColor: 'bg-pink-100',
     expressiveness: 65,
     style: 'Illustrated',
-    imageUrl: '/avatars/layla_home.png', // Mia persona's actual face
-    videoUrl: '/avatars/layla_home.mp4',
+    imageUrl: '/avatars/mia_studio.png', // Mia persona's actual face (live = Anam)
     anamPersonaId: '05eb3c1f-50ee-42c5-accc-4606bfaa9276', // Mia (Customer Support)
     greeting: "Hi, I'm Ivy! Billing, a bug, or just getting started — I've got you. What can I help with?",
     systemPrompt: 'You are Ivy, a customer support agent. Be warm, empathetic, and efficient. Keep responses to 2-3 sentences.',
