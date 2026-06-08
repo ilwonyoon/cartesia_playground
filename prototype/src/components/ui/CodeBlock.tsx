@@ -1,39 +1,64 @@
 /**
  * CodeBlock — light, line-numbered code viewer matching the Cartesia console
- * snippet style (white card, gutter line numbers, subtle HTML highlighting,
- * top-right Copy). Highlighting is a lightweight hand-tokenizer for the small
- * HTML embed snippet — no syntax library, no cold colors (strings reuse the
- * brand green, tags/attrs sit on warm neutrals).
+ * snippet style (white card, gutter line numbers, subtle highlighting,
+ * top-right Copy). Highlighting is a lightweight hand-tokenizer (no syntax
+ * library, no cold colors): strings reuse the brand green, keywords/tags sit
+ * on warm neutrals. Covers the small set of langs the embed picker shows.
  */
 import { useState, type ReactNode } from 'react'
 import { Copy, Check } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
-/* Tokenize one line of the embed HTML into colored spans. Kept deliberately
-   small — it only needs to handle tags, attribute names, and quoted strings. */
-function highlightHtml(line: string): ReactNode[] {
+export type CodeLang = 'html' | 'js' | 'python'
+
+const KEYWORDS: Record<CodeLang, string[]> = {
+  html: [],
+  js: ['const', 'let', 'var', 'new', 'await', 'async', 'function', 'return', 'import', 'from', 'export'],
+  python: ['from', 'import', 'await', 'async', 'def', 'return', 'with', 'as', 'class'],
+}
+
+const COMMENT_PREFIX: Record<CodeLang, string | null> = {
+  html: null, js: '//', python: '#',
+}
+
+/* Tokenize one line into colored spans. Strings → brand green; HTML tags and
+   language keywords → warm neutral-700; comments → muted. Deliberately small. */
+function highlight(line: string, lang: CodeLang): ReactNode[] {
+  // Whole-line comment.
+  const cp = COMMENT_PREFIX[lang]
+  if (cp && line.trimStart().startsWith(cp)) {
+    return [<span key="c" className="text-neutral-400 italic">{line}</span>]
+  }
+
   const out: ReactNode[] = []
-  // Split on quoted strings first so attribute values stay intact.
-  const parts = line.split(/("[^"]*")/g)
+  // Split on quoted strings (single or double) so values stay intact.
+  const parts = line.split(/("[^"]*"|'[^']*')/g)
   parts.forEach((part, i) => {
-    if (part.startsWith('"') && part.endsWith('"')) {
+    if ((part.startsWith('"') && part.endsWith('"')) || (part.startsWith("'") && part.endsWith("'"))) {
       out.push(<span key={i} className="text-brand">{part}</span>)
       return
     }
-    // Within non-string text, color tag names and angle brackets.
-    const sub = part.split(/(<\/?[a-zA-Z-]+|\/?>)/g)
+    if (lang === 'html') {
+      const sub = part.split(/(<\/?[a-zA-Z-]+|\/?>)/g)
+      sub.forEach((s, j) => {
+        const cls = (/^<\/?[a-zA-Z-]+$/.test(s) || /^\/?>$/.test(s))
+          ? 'text-neutral-700 font-[500]' : 'text-neutral-600'
+        out.push(<span key={`${i}-${j}`} className={cls}>{s}</span>)
+      })
+      return
+    }
+    // js / python — color keywords by word boundary.
+    const words = KEYWORDS[lang]
+    const sub = part.split(/(\b(?:[a-zA-Z_]\w*)\b)/g)
     sub.forEach((s, j) => {
-      if (/^<\/?[a-zA-Z-]+$/.test(s) || /^\/?>$/.test(s)) {
-        out.push(<span key={`${i}-${j}`} className="text-neutral-700 font-[500]">{s}</span>)
-      } else {
-        out.push(<span key={`${i}-${j}`} className="text-neutral-600">{s}</span>)
-      }
+      const cls = words.includes(s) ? 'text-neutral-700 font-[600]' : 'text-neutral-600'
+      out.push(<span key={`${i}-${j}`} className={cls}>{s}</span>)
     })
   })
   return out
 }
 
-export function CodeBlock({ code, className }: { code: string; className?: string }) {
+export function CodeBlock({ code, lang = 'html', className }: { code: string; lang?: CodeLang; className?: string }) {
   const [copied, setCopied] = useState(false)
   const lines = code.split('\n')
 
@@ -65,7 +90,7 @@ export function CodeBlock({ code, className }: { code: string; className?: strin
                   {i + 1}
                 </td>
                 <td className="whitespace-pre text-[12.5px] leading-[1.7] font-mono">
-                  {highlightHtml(line)}
+                  {highlight(line, lang)}
                 </td>
               </tr>
             ))}

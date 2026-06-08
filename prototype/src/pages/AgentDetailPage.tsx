@@ -7,7 +7,7 @@ import { cn } from '../lib/utils'
 import { AgentConfigurationTab } from './AgentConfigurationTab'
 import { useVoiceAgent } from '../hooks/useVoiceAgent'
 import { AnamPreview } from '../components/avatar/AnamPreview'
-import { CodeBlock } from '../components/ui/CodeBlock'
+import { CodeBlock, type CodeLang } from '../components/ui/CodeBlock'
 import type { Avatar } from '../data/avatars'
 
 /* ── Agent detail (Figma 56:1715 / structural ref 77:550) ─────────────
@@ -119,7 +119,7 @@ function VersionRow({ version, last }: { version: Version; last?: boolean }) {
   )
 }
 
-type PreviewMode = 'Web' | 'Phone'
+type PreviewMode = 'Widget' | 'Phone'
 
 /* Scrolling history waveform — Figma spec: 4px bar, 4px gap, 48px tall, gradient fill */
 function Waveform({ amplitude, active = true, variant = 'agent' }: {
@@ -314,87 +314,63 @@ function PhonePreview() {
   return (
     <>
       {isActive ? (
-        <>
-          <div className="flex-1 flex flex-col bg-neutral-100 overflow-hidden">
+        <div className="flex-1 flex items-center justify-center bg-neutral-100 p-5">
+          {/* Figma: Section - Voice call — compact card, centered in panel */}
+          <div className="w-full rounded-[13px] border border-[rgba(223,220,215,0.8)] bg-[rgba(253,253,252,0.95)] backdrop-blur-[12px] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] overflow-hidden">
 
-            {/* Header: agent name + Live call */}
-            <div className="flex items-center justify-between gap-3 px-4 pt-5 pb-2">
-              <div className="flex flex-col gap-0.5">
-                <p className="text-[13.7px] font-[600] text-[#39342f] tracking-[-0.375px] leading-5">{AGENT.name}</p>
+            {/* Header row: mic icon + name/status + end call */}
+            <div className="flex items-center gap-3 px-3 pt-2 pb-1.5">
+              <button
+                onClick={toggleMute}
+                className={cn(
+                  'w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors cursor-pointer shadow-[0px_0px_0px_1px_rgba(10,10,10,0.08),0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]',
+                  muted ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700',
+                )}
+              >
+                <MicIcon muted={muted} size={18} />
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13.7px] font-[600] text-[#39342f] tracking-[-0.375px] leading-5 truncate">{AGENT.name}</p>
                 <p className="text-[11.3px] text-[#636260] leading-4">Live call</p>
               </div>
-              <div className="flex items-center gap-2">
-                {/* Mute button — Figma size 40px */}
-                <button
-                  onClick={toggleMute}
-                  className={cn(
-                    'w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer shadow-[0px_0px_0px_1px_rgba(10,10,10,0.08),0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]',
-                    muted ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700',
-                  )}
-                >
-                  <MicIcon muted={muted} size={18} />
-                </button>
-                {/* End call button */}
-                <button
-                  onClick={endCall}
-                  className="w-10 h-10 rounded-full bg-[#fb2c36] flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer shadow-[0px_0px_0px_1px_rgba(193,0,7,0.2),0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
-                >
-                  <Phone size={16} strokeWidth={0} fill="white" className="rotate-[135deg]" />
-                </button>
-              </div>
+              <button
+                onClick={endCall}
+                className="w-10 h-10 rounded-full bg-[#fb2c36] flex items-center justify-center shrink-0 hover:opacity-90 transition-opacity cursor-pointer shadow-[0px_0px_0px_1px_rgba(193,0,7,0.2),0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+              >
+                <Phone size={16} strokeWidth={0} fill="white" className="rotate-[135deg]" />
+              </button>
             </div>
 
-            {/* Agent waveform row */}
-            <div className="px-4 pt-2 pb-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-[600] text-[rgba(57,52,47,0.8)] tracking-[0.25px]">Agent</span>
-              </div>
+            {/* Agent waveform */}
+            <div className="px-3 pt-1 pb-0.5 flex items-center gap-2">
+              <span className="text-[10px] font-[600] text-[rgba(57,52,47,0.8)] tracking-[0.25px] w-7 shrink-0">Agent</span>
               <Waveform amplitude={agentAmplitude} active={talkState === 'speaking'} variant="agent" />
             </div>
 
-            {/* You waveform row */}
-            <div className="px-4 pt-3 pb-2">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-[600] text-[rgba(57,52,47,0.8)] tracking-[0.25px]">You</span>
-              </div>
+            {/* You waveform */}
+            <div className="px-3 pt-2 pb-1.5 flex items-center gap-2">
+              <span className="text-[10px] font-[600] text-[rgba(57,52,47,0.8)] tracking-[0.25px] w-7 shrink-0">You</span>
               <Waveform amplitude={userAmplitude} active={!muted} variant="user" />
             </div>
 
-            {/* Status bar — Figma bottom strip */}
-            <div className="mt-auto px-4 py-3 flex items-center justify-between border-t border-neutral-300/60">
+            {/* Status bar */}
+            <div className="px-3 py-2 flex items-center justify-between border-t border-[rgba(223,220,215,0.6)]">
               <div className="flex items-center gap-2">
-                {/* Agent speaking indicator */}
                 <div className="flex items-center gap-1.5">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{
-                      background: '#00d492',
-                      boxShadow: talkState === 'speaking' ? '0 0 8px rgba(52,211,153,0.6)' : 'none',
-                      opacity: talkState === 'speaking' ? 1 : 0.35,
-                    }}
-                  />
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#00d492', boxShadow: talkState === 'speaking' ? '0 0 8px rgba(52,211,153,0.6)' : 'none', opacity: talkState === 'speaking' ? 1 : 0.35 }} />
                   <span className="text-[11px] text-[#636260]">Agent speaking</span>
                 </div>
                 <span className="text-[11px] text-[rgba(99,98,96,0.7)]">•</span>
-                {/* Mic connected indicator */}
                 <div className="flex items-center gap-1.5">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{
-                      background: '#00a6f4',
-                      boxShadow: !muted ? '0 0 6px rgba(14,165,233,0.5)' : 'none',
-                      opacity: muted ? 0.35 : 1,
-                    }}
-                  />
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#00a6f4', boxShadow: !muted ? '0 0 6px rgba(14,165,233,0.5)' : 'none', opacity: muted ? 0.35 : 1 }} />
                   <span className="text-[11px] text-[#636260]">{muted ? 'Mic muted' : 'Mic connected'}</span>
                 </div>
               </div>
-              {/* Duration */}
               <span className="text-[11px] text-[#636260] tabular-nums">{duration}</span>
             </div>
 
           </div>
-        </>
+        </div>
       ) : (
         <div className="flex-1 bg-neutral-100 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4 px-8 text-center">
@@ -432,20 +408,20 @@ function PhonePreview() {
    click → live face) and a Phone tab (PSTN call test). Web is the default
    when a face is attached, since that's where the face is meant to live. */
 function PreviewPanel({ onClose, hasFace }: { onClose: () => void; hasFace: boolean }) {
-  const [mode, setMode] = useState<PreviewMode>(hasFace ? 'Web' : 'Phone')
+  const [mode, setMode] = useState<PreviewMode>(hasFace ? 'Widget' : 'Phone')
 
   return (
-    <aside className="w-[400px] shrink-0 flex flex-col h-full border-l border-neutral-400 bg-white">
+    <aside className="w-[400px] shrink-0 flex flex-col h-full border-l border-neutral-400 bg-neutral-100">
       {/* Panel toolbar */}
       <div className="h-[48px] flex items-center justify-between gap-2 px-3 border-b border-neutral-400">
-        <div className="flex items-center p-0.5 rounded-[7.2px] bg-neutral-200">
-          {(['Web', 'Phone'] as const).map(m => (
+        <div className="flex items-center p-0.5 rounded-[7.2px] bg-neutral-300">
+          {(['Phone', 'Widget'] as const).map(m => (
             <button
               key={m}
               onClick={() => setMode(m)}
               className={cn(
                 'h-[26px] px-3 rounded-[5.76px] text-[12.5px] font-[500] leading-5 cursor-pointer transition-colors whitespace-nowrap',
-                mode === m ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700',
+                mode === m ? 'bg-neutral-100 text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700',
               )}
             >
               {m}
@@ -457,7 +433,7 @@ function PreviewPanel({ onClose, hasFace }: { onClose: () => void; hasFace: bool
         </button>
       </div>
 
-      {mode === 'Web' ? <WebPreview /> : <PhonePreview />}
+      {mode === 'Widget' ? <WebPreview /> : <PhonePreview />}
     </aside>
   )
 }
@@ -527,12 +503,85 @@ function ChannelChip({ icon, label }: { icon: React.ReactNode; label: string }) 
   )
 }
 
+/* Embed formats Cartesia actually supports for connecting a client to a
+   deployed agent (verified against docs.cartesia.ai/line + the cartesia/line
+   SDKs). There is no drop-in <script> web component — the real web path is the
+   raw WebSocket. JS/Python mint the token + open it; LiveKit/Pipecat are
+   partner model-integrations. No fictional <cartesia-agent> element. */
+type EmbedFormat = {
+  key: string
+  label: string
+  lang: CodeLang
+  partner?: boolean
+  docs: string
+  snippet: (agentId: string) => string
+}
+
+const EMBED_FORMATS: EmbedFormat[] = [
+  {
+    key: 'websocket', label: 'WebSocket', lang: 'js', docs: 'WebSocket API docs',
+    snippet: id => `// Mint an agent access token server-side, then connect.
+const ws = new WebSocket(
+  "wss://api.cartesia.ai/agents/stream/${id}",
+  { headers: {
+    Authorization: \`Bearer \${accessToken}\`,
+    "Cartesia-Version": "2025-04-16",
+  }}
+)
+ws.onopen = () => ws.send(JSON.stringify({
+  event: "start",
+  config: { input_format: "pcm_44100" },
+}))`,
+  },
+  {
+    key: 'js', label: 'JavaScript', lang: 'js', docs: 'JS SDK docs',
+    snippet: id => `import { CartesiaClient } from "@cartesia/cartesia-js"
+
+// Server-side: mint a short-lived agent token for the browser.
+const client = new CartesiaClient({ apiKey: process.env.CARTESIA_API_KEY })
+const { token } = await client.accessToken.create({
+  grants: { agent: true },
+  agentId: "${id}",
+})
+// Hand \`token\` to the client and open the WebSocket above.`,
+  },
+  {
+    key: 'python', label: 'Python', lang: 'python', docs: 'Line SDK docs',
+    snippet: () => `from line import LlmAgent, VoiceAgentApp
+
+# The agent runtime you deploy with \`cartesia deploy\`.
+agent = LlmAgent(system_prompt="…")
+app = VoiceAgentApp(agent)
+
+# Clients reach the deployed agent over the WebSocket API.`,
+  },
+  {
+    key: 'livekit', label: 'LiveKit', lang: 'python', partner: true, docs: 'LiveKit integration',
+    snippet: () => `from livekit.plugins import cartesia
+
+# Use Cartesia's voice inside a LiveKit Agents pipeline.
+session = AgentSession(
+  tts=cartesia.TTS(model="sonic-3", voice="…"),
+)`,
+  },
+  {
+    key: 'pipecat', label: 'Pipecat', lang: 'python', partner: true, docs: 'Pipecat integration',
+    snippet: () => `from pipecat.services.cartesia import CartesiaTTSService
+
+# Use Cartesia's voice inside a Pipecat pipeline.
+tts = CartesiaTTSService(
+  api_key=CARTESIA_API_KEY,
+  voice_id="…",
+)`,
+  },
+]
+
 /* ── Web / Application embed section (Widget tab) ─────────────────────
    Empty until an avatar is attached. With a published avatar, shows the
-   live preview + a working embed snippet. With an unpublished (draft)
-   avatar, the preview still renders ("here's how it'll look") but the
-   snippet is gated behind Publish — it only goes live once published.
-   Card sits on the control surface; only the snippet code block stays white. */
+   live preview + a multi-format embed picker (WebSocket / JS / Python /
+   LiveKit / Pipecat — the formats Cartesia really supports). With an
+   unpublished (draft) avatar, the preview still renders but the snippet
+   is gated behind Publish. Card on the control surface; code block white. */
 function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishing }: {
   avatar: Avatar | null
   published: boolean
@@ -540,11 +589,7 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
   onPublish: () => void
   publishing: boolean
 }) {
-  const snippet = `<script src="https://embed.cartesia.ai/v1.js"></script>
-<cartesia-agent
-  agent-id="${AGENT.id}"
-  avatar="on">
-</cartesia-agent>`
+  const [format, setFormat] = useState(EMBED_FORMATS[0])
 
   return (
     <div className="border border-neutral-400 rounded-[10px] overflow-hidden bg-bg-control">
@@ -579,7 +624,21 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-[11.3px] font-[500] text-neutral-500 leading-4 mb-2">Embed snippet</p>
+            {/* Format tabs — Cartesia's real client surfaces. */}
+            <div className="flex items-center gap-0.5 mb-2.5 -ml-1">
+              {EMBED_FORMATS.map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setFormat(f)}
+                  className={cn(
+                    'h-[26px] px-2.5 rounded-[6px] text-[12.5px] font-[500] cursor-pointer transition-colors whitespace-nowrap',
+                    format.key === f.key ? 'bg-neutral-200 text-neutral-900' : 'text-neutral-500 hover:text-neutral-800',
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
 
             {/* Draft banner — the snippet only works once the avatar is live. */}
             {!published && (
@@ -606,10 +665,15 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
 
             {/* Snippet — dimmed + non-interactive until published. */}
             <div className={cn(!published && 'opacity-50 pointer-events-none select-none')}>
-              <CodeBlock code={snippet} />
+              <CodeBlock code={format.snippet(AGENT.id)} lang={format.lang} />
             </div>
-            <p className="mt-2 text-[11.5px] text-neutral-500 leading-4">
-              Connects to <code className="font-mono text-[11px] text-neutral-600">wss://api.cartesia.ai/agents/stream/{AGENT.id.slice(0, 12)}…</code> with an access token minted server-side.
+            <p className="mt-2 flex items-center gap-1.5 text-[11.5px] text-neutral-500 leading-4">
+              {format.partner && (
+                <span className="inline-flex items-center h-[16px] px-[6px] rounded-full border border-neutral-400 bg-neutral-200 text-[10px] font-[500] text-neutral-600">Integration</span>
+              )}
+              {format.key === 'websocket'
+                ? <>Connects with an access token minted server-side.</>
+                : <>See the {format.docs} for the full flow.</>}
             </p>
           </div>
         </div>
@@ -646,13 +710,17 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
      number + Call▾ (not "Get Phone Number"). */
   const hasPhoneNumber = true
 
-  /* Which avatar is live in production. The agent starts already published
-     with its current avatar; changing the avatar makes the config a draft
-     until Publish, which is what gates the embed snippet on the Widget tab —
-     the snippet only works once the avatar is actually live. */
-  const [publishedAvatarId, setPublishedAvatarId] = useState<string | null>(selectedAvatar?.id ?? null)
+  /* Which avatar is live in production. Starts null (no avatar published yet).
+     hasDraft = avatar is selected but differs from what's live — gates Publish.
+     avatarPublished = selected avatar matches what's live — shows snippet. */
+  const [publishedAvatarId, setPublishedAvatarId] = useState<string | null>(null)
   const avatarPublished = !!selectedAvatar && publishedAvatarId === selectedAvatar.id
-  const hasDraft = !avatarPublished
+  const hasDraft = !!selectedAvatar && !avatarPublished
+
+  // Demo reset: when selectedAvatar is cleared, unpublish so the flow restarts cleanly.
+  useEffect(() => {
+    if (!selectedAvatar) setPublishedAvatarId(null)
+  }, [selectedAvatar])
 
   /* Publish promotes the config to production. After the build "completes"
      we drop the user on the Widget tab when a face is attached — that's the
@@ -698,7 +766,7 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
             className={cn(
               'h-[30px] px-3 rounded-[7.2px] border text-[13px] font-[500] transition-colors cursor-pointer',
               previewOpen
-                ? 'border-brand/30 bg-brand-tint text-brand'
+                ? 'border-neutral-500 bg-neutral-200 text-neutral-900'
                 : 'border-neutral-400 bg-neutral-100 text-neutral-900 hover:bg-neutral-200',
             )}
           >
