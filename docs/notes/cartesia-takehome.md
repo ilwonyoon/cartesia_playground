@@ -104,7 +104,38 @@ Step 5 — Deploy
 
 ## Part 1: Competitive Teardown
 
-### 경쟁사: ElevenLabs
+### 핵심 프레임 — Same goal, different belief
+
+ElevenLabs와 Cartesia는 같은 목표(foundational audio)를 향해 달리지만, 사용자를 대하는 철학이 근본적으로 다르다.
+
+| | Cartesia | ElevenLabs |
+|--|----------|------------|
+| **정체성** | Research lab that demos its tech | Product company built for outcomes |
+| **첫 질문** | "우리 기술이 뭔지 볼래?" | "당신은 뭘 만들러 왔어?" |
+| **IA 기준** | 시스템이 가진 것 (API keys, Models, Usage) | 사용자가 만드는 것 (Speech, Voices, Agents) |
+| **콘텐츠 패널** | 기능 노출 → 스스로 탐색 | 인라인 가이드 → context 안에서 학습 |
+
+**세 가지 비교 축:**
+
+1. **Onboarding funnel** — ElevenLabs는 진입 즉시 use-case를 묻고 이후 모든 경험을 거기에 맞춘다. Cartesia는 콘솔로 직행.
+2. **Side nav / IA** — ElevenLabs의 네비는 output 기준(무엇을 만드는가). Cartesia의 네비는 input 기준(무엇을 갖고 있는가).
+3. **Content panel** — ElevenLabs는 패널 안에서 가르치면서 빌드하게 한다. Cartesia는 깔끔하지만 조용하다.
+
+**결론:** Cartesia는 cutting-edge 기술을 갖고 있지만 아직 research lab 언어로 말하고 있다. 격차를 좁히려면 기술이 아니라 사용자의 goal을 출발점으로 삼는 IA와 onboarding이 필요하다.
+
+---
+
+### 세부 비교 (이미지/영상 첨부 예정)
+
+**① Onboarding funnel**
+
+**② Side nav / IA**
+
+**③ Content panel**
+
+---
+
+### 경쟁사: ElevenLabs (기존 finding 3개)
 
 **1. 실시간 대화 에이전트 데모를 첫 화면에 박음**
 
