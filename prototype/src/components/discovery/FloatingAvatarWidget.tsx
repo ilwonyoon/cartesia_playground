@@ -9,7 +9,7 @@ import { AnamPreview } from '../avatar/AnamPreview'
 import { GlassPill } from '../ui/GlassPill'
 import { FACE_AGENT_GREETING } from './avatarGreeting'
 
-const COVER = '/cartesia_cover.webp'
+const POSTER = '/avatars/mia_studio.png'
 const HAS_ANAM_KEYS = !!(
   import.meta.env.VITE_ANAM_API_KEY && import.meta.env.VITE_ANAM_PERSONA_ID
 )
@@ -31,19 +31,22 @@ export function FloatingAvatarWidget({ onOpenModal, hidden = false }: FloatingAv
         onClick={onOpenModal}
         className="relative rounded-[20px] overflow-hidden cursor-pointer shadow-[0px_4px_8px_rgba(0,0,0,0.08),0px_14px_14px_rgba(0,0,0,0.07),0px_33px_20px_rgba(0,0,0,0.04),0px_56px_23px_rgba(0,0,0,0.01)] transition-transform duration-200 group-hover:scale-[1.02]"
       >
-        {/* Avatar or cover fallback */}
+        {/* Avatar — poster thumbnail always visible; live Anam session only with keys */}
         {HAS_ANAM_KEYS ? (
           <AnamPreview
             greeting={FACE_AGENT_GREETING}
             stopAfterGreeting
             outputMuted={muted}
             micEnabled={false}
+            showCoverArt={false}
+            posterUrl={POSTER}
+            manualStart={false}
             className="!aspect-[3/4] rounded-none"
           />
         ) : (
           <div
             className="aspect-[3/4] w-full bg-cover bg-center"
-            style={{ backgroundImage: `url(${COVER})` }}
+            style={{ backgroundImage: `url(${POSTER})` }}
           />
         )}
 
@@ -77,7 +80,7 @@ export function FloatingAvatarWidget({ onOpenModal, hidden = false }: FloatingAv
         <div className="absolute bottom-0 left-0 right-0 px-3 pb-4 pt-8 bg-gradient-to-t from-black/30 to-transparent pointer-events-none">
           <GlassPill tabIndex={-1} className="w-full">
             <span className="text-[13px] font-[500] text-black/70 tracking-[-0.26px] whitespace-nowrap">
-              Talk with agent
+              Meet your agent
             </span>
           </GlassPill>
         </div>

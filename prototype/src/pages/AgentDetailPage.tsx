@@ -250,20 +250,54 @@ function useDuration(active: boolean) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-/* Chat row — agent: label + plain text (no bubble), user: label + rounded bubble */
-function ChatRow({ role, content }: { role: 'agent' | 'user'; content: string }) {
+/* 5-dot speaking indicator — name inline with dots.
+   Agent: [name] [● ● ● ● ●]   User: [● ● ● ● ●] [name] */
+function SpeakingDots({ speaker, userName = 'You' }: { speaker: 'agent' | 'user' | 'none'; userName?: string }) {
+  if (speaker === 'none') return null
+  const isAgent = speaker === 'agent'
+  const dots = [0, 1, 2, 3, 4]
+  return (
+    <div className={cn('px-4 flex items-center gap-1.5', isAgent ? 'justify-start' : 'justify-end')}>
+      {isAgent && (
+        <span className="text-[10.5px] font-[500] text-neutral-500">{isAgent ? 'Agent' : userName}</span>
+      )}
+      <div className="flex items-center gap-[3px]" style={{ height: 14 }}>
+        {dots.map(i => (
+          <span
+            key={i}
+            className="speak-bar block w-[3px] rounded-full bg-brand"
+            style={{
+              height: 3 + (i === 2 ? 8 : i === 1 || i === 3 ? 5 : 0),
+              animation: `speakPulse 0.9s ease-in-out ${i * 0.12}s infinite`,
+              opacity: 0.8,
+            }}
+          />
+        ))}
+      </div>
+      {!isAgent && (
+        <span className="text-[10.5px] font-[500] text-neutral-500">{userName}</span>
+      )}
+    </div>
+  )
+}
+
+/* Chat row — agent: label + plain text, user: label + rounded bubble */
+function ChatRow({ role, content, streaming }: { role: 'agent' | 'user'; content: string; streaming?: boolean }) {
   const isUser = role === 'user'
   return (
     <div className={cn('px-4 flex flex-col gap-0.5', isUser ? 'items-end' : 'items-start')}>
-      <span className="text-[10.5px] font-[500] text-white/35 px-0.5">
+      <span className="text-[10.5px] font-[500] text-neutral-500 px-0.5">
         {isUser ? 'You' : 'Agent'}
       </span>
       {isUser ? (
-        <div className="max-w-[80%] px-3 py-2 rounded-[14px] rounded-tr-[4px] bg-white/15 text-white text-[13px] leading-[1.45]">
+        <div className="max-w-[80%] px-3 py-2 rounded-[14px] rounded-tr-[4px] bg-neutral-900/10 text-neutral-900 text-[13px] leading-[1.45]">
           {content}
         </div>
       ) : (
-        <p className="max-w-[90%] text-white/85 text-[13px] leading-[1.5]">{content}</p>
+        <p className={cn('max-w-[90%] text-neutral-800 text-[13px] leading-[1.5]', streaming && 'opacity-70')}>
+          {content}
+          {streaming && <span className="inline-block w-[2px] h-[13px] bg-neutral-500 ml-0.5 align-middle animate-pulse" />}
+        </p>
       )}
     </div>
   )
@@ -280,13 +314,42 @@ function WebPreview({ avatar, onPickAvatar, agentSystemPrompt }: {
 }) {
   type WidgetState = 'idle' | 'playing' | 'expanded'
   const [widgetState, setWidgetState] = useState<WidgetState>('idle')
-  // armed drives the single AnamPreview — false until user clicks Play
   const [armed, setArmed] = useState(false)
-  const { messages } = useVoiceAgent()
+  const [messages, setMessages] = useState<{ id: number; role: 'agent' | 'user'; content: string; streaming?: boolean }[]>([])
+  const [speaking, setSpeaking] = useState<'agent' | 'user' | 'none'>('none')
+  const msgIdRef = useRef(0)
+  const streamingMsgIdRef = useRef<number | null>(null)
   const chatRef = useRef<HTMLDivElement>(null)
 
-  // Use the agent's Initial Message from Configuration (same as AvatarPickerModal uses initialMessage)
   const greeting = DEFAULT_INITIAL_MESSAGE
+
+  const handleMessage = useCallback((role: 'agent' | 'user' | 'agent:stream' | 'agent:done', content: string) => {
+    if (role === 'agent:stream') {
+      // Create or update the in-progress agent bubble
+      setMessages(prev => {
+        const streamId = streamingMsgIdRef.current
+        if (streamId !== null) {
+          return prev.map(m => m.id === streamId ? { ...m, content, streaming: true } : m)
+        }
+        const newId = ++msgIdRef.current
+        streamingMsgIdRef.current = newId
+        return [...prev, { id: newId, role: 'agent', content, streaming: true }]
+      })
+    } else if (role === 'agent:done') {
+      // Finalize the streaming bubble
+      setMessages(prev => {
+        const streamId = streamingMsgIdRef.current
+        streamingMsgIdRef.current = null
+        if (streamId !== null) {
+          return prev.map(m => m.id === streamId ? { ...m, content, streaming: false } : m)
+        }
+        return [...prev, { id: ++msgIdRef.current, role: 'agent', content, streaming: false }]
+      })
+    } else {
+      streamingMsgIdRef.current = null
+      setMessages(prev => [...prev, { id: ++msgIdRef.current, role: 'user', content }])
+    }
+  }, [])
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
@@ -300,6 +363,9 @@ function WebPreview({ avatar, onPickAvatar, agentSystemPrompt }: {
   const handleEnd = useCallback(() => {
     setArmed(false)
     setWidgetState('idle')
+    setMessages([])
+    setSpeaking('none')
+    streamingMsgIdRef.current = null
   }, [])
 
   if (!avatar) {
@@ -326,25 +392,13 @@ function WebPreview({ avatar, onPickAvatar, agentSystemPrompt }: {
   const isPlaying = widgetState === 'playing'
 
   return (
-    <div className={cn('flex-1 relative z-10 overflow-hidden', isExpanded && 'bg-neutral-900 flex flex-col')}>
-
-      {/* Chat thread — only visible in expanded state */}
-      <div
-        ref={chatRef}
-        className={cn('flex-1 overflow-y-auto py-3 flex flex-col gap-3 min-h-0', !isExpanded && 'hidden')}
-      >
-        {messages.length === 0 ? (
-          <p className="text-[11.5px] text-white/30 text-center px-4 mt-2">Conversation will appear here…</p>
-        ) : (
-          messages.map(m => <ChatRow key={m.id} role={m.role} content={m.content} />)
-        )}
-      </div>
+    <div className={cn('flex-1 relative z-10 overflow-hidden', isExpanded && 'flex flex-col')}>
 
       {/* Avatar container — same DOM node for all states, only style changes */}
       <div
-        className={cn('shrink-0', isExpanded ? 'relative w-full' : 'absolute')}
+        className={cn('shrink-0', isExpanded ? 'relative' : 'absolute')}
         style={isExpanded
-          ? { aspectRatio: '16/9' }
+          ? { margin: 16, borderRadius: 16, overflow: 'hidden', aspectRatio: '16/9' }
           : { bottom: 16, right: 16, width: 120, aspectRatio: '3/4', borderRadius: 16, overflow: 'hidden', boxShadow: '0px 4px 8px rgba(0,0,0,0.08),0px 14px 14px rgba(0,0,0,0.07)' }
         }
       >
@@ -366,6 +420,8 @@ function WebPreview({ avatar, onPickAvatar, agentSystemPrompt }: {
           showCoverArt={false}
           showHud={false}
           transparentBg
+          onMessage={handleMessage}
+          onSpeakingChange={setSpeaking}
           className="!aspect-auto absolute inset-0 w-full h-full rounded-none"
         />
 
@@ -422,6 +478,20 @@ function WebPreview({ avatar, onPickAvatar, agentSystemPrompt }: {
           </div>
         )}
       </div>
+
+      {/* Chat thread — below avatar in expanded state */}
+      {isExpanded && (
+        <div
+          ref={chatRef}
+          className="flex-1 overflow-y-auto py-3 flex flex-col gap-3 min-h-0"
+        >
+          {messages.length === 0 && speaking === 'none' && (
+            <p className="text-[11.5px] text-neutral-400 text-center px-4 mt-2">Conversation will appear here…</p>
+          )}
+          {messages.map(m => <ChatRow key={m.id} role={m.role} content={m.content} streaming={m.streaming} />)}
+          <SpeakingDots speaker={speaking} />
+        </div>
+      )}
 
       {/* Label below floating card */}
       {!isExpanded && (
@@ -759,6 +829,7 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
               posterUrl={avatar.imageUrl}
               avatarId={avatar.anamPersonaId}
               showCoverArt={false}
+              showHud={false}
               className="!aspect-[3/4] rounded-[12px]"
             />
             <p className="mt-2 text-[11px] text-neutral-500 leading-4 text-center">

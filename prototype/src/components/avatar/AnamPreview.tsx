@@ -31,6 +31,13 @@ interface AnamPreviewProps {
   /** Override which Anam avatar to stream. Falls back to VITE_ANAM_PERSONA_ID. */
   avatarId?: string
   systemPrompt?: string
+  /** Called with message events for external chat display.
+   *  role='agent:stream' — incremental text (update current agent bubble)
+   *  role='agent:done'   — final text for current agent turn
+   *  role='user'         — completed user turn */
+  onMessage?: (role: 'agent' | 'user' | 'agent:stream' | 'agent:done', content: string) => void
+  /** Called when speaking state changes — who is currently talking. */
+  onSpeakingChange?: (speaker: 'agent' | 'user' | 'none') => void
   onReady?: (sendAudio: (pcmBase64: string) => void) => void
   className?: string
   /** Onboarding cover ("Add a face to your agent"). Default true. Set false
@@ -59,6 +66,8 @@ export function AnamPreview({
   outputMuted = false,
   avatarId,
   systemPrompt,
+  onMessage,
+  onSpeakingChange,
   onReady,
   className = '',
   showCoverArt = true,
@@ -76,6 +85,10 @@ export function AnamPreview({
   const armed = externalArmed !== undefined ? externalArmed : internalArmed
   const onGreetingDoneRef = useRef(onGreetingDone)
   onGreetingDoneRef.current = onGreetingDone
+  const onMessageRef = useRef(onMessage)
+  onMessageRef.current = onMessage
+  const onSpeakingChangeRef = useRef(onSpeakingChange)
+  onSpeakingChangeRef.current = onSpeakingChange
   const micOn = micEnabled
 
   useEffect(() => {
@@ -111,16 +124,70 @@ export function AnamPreview({
 
         setStatus('live')
 
-        if (greeting) {
-          // Wait for VIDEO_PLAY_STARTED before talking — talk() requires active streaming.
-          const { AnamEvent } = await import('@anam-ai/js-sdk')
-          client.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, (e: { endOfSpeech: boolean }) => {
-            if (e.endOfSpeech && !cancelled) {
-              setGreetingDone(true)
-              onGreetingDoneRef.current?.()
-              if (stopAfterGreeting) client?.stopStreaming?.().catch(() => {})
+        const { AnamEvent } = await import('@anam-ai/js-sdk')
+
+        // Speaking state — user speech events
+        client.addListener(AnamEvent.USER_SPEECH_STARTED, () => { if (!cancelled) onSpeakingChangeRef.current?.('user') })
+        client.addListener(AnamEvent.USER_SPEECH_ENDED,   () => { if (!cancelled) onSpeakingChangeRef.current?.('none') })
+
+        // Real-time streaming text via MESSAGE_STREAM_EVENT_RECEIVED.
+        // content is CHUNK-based (each event = one new word/token, not cumulative).
+        // We accumulate per-turn-id into streamBuffers.
+        //
+        // Anam fires a synthetic "initial_message" event (contentLen=0, interrupted=true)
+        // before the actual talk() stream starts. We skip ALL turns until the user
+        // explicitly speaks (i.e., we only show LLM responses, not the greeting).
+        // The greeting is not shown in chat — it plays as audio only.
+        let greetingDoneFlag = !greeting  // if no greeting, LLM turns are shown immediately
+        const streamBuffers = new Map<string, string>()
+
+        client.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, (e: { id: string; content: string; role: string; endOfSpeech: boolean; interrupted: boolean }) => {
+          if (cancelled) return
+          if (e.role === 'persona') {
+            onSpeakingChangeRef.current?.(e.endOfSpeech ? 'none' : 'agent')
+
+            if (!greetingDoneFlag) {
+              // Still in greeting phase — wait for a clean endOfSpeech (not interrupted)
+              // The SDK fires a synthetic initial_message (interrupted=true) before talk()
+              // starts — ignore that; wait for the actual greeting to finish cleanly.
+              if (e.endOfSpeech && !e.interrupted) {
+                greetingDoneFlag = true
+                setGreetingDone(true)
+                onGreetingDoneRef.current?.()
+                if (stopAfterGreeting) client?.stopStreaming?.().catch(() => {})
+              }
+              return
             }
-          })
+
+            // LLM response turn — accumulate chunks
+            const prev = streamBuffers.get(e.id) ?? ''
+            const accumulated = prev + (e.content ?? '')
+            if (e.endOfSpeech || e.interrupted) {
+              streamBuffers.delete(e.id)
+              onMessageRef.current?.('agent:done', accumulated)
+            } else {
+              streamBuffers.set(e.id, accumulated)
+              onMessageRef.current?.('agent:stream', accumulated)
+            }
+          }
+        })
+
+        // MESSAGE_HISTORY_UPDATED: emit completed user turns only.
+        // Agent turns are handled via streaming above to avoid duplicates.
+        const seenIds = new Set<string>()
+        client.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, (history: { id: string; content: string; role: string }[]) => {
+          if (cancelled) return
+          for (const msg of history) {
+            if (seenIds.has(msg.id)) continue
+            seenIds.add(msg.id)
+            if (msg.role === 'user') {
+              onMessageRef.current?.('user', msg.content)
+            }
+            // Agent messages come through streaming — skip here to avoid duplicates
+          }
+        })
+
+        if (greeting) {
           client.addListener(AnamEvent.VIDEO_PLAY_STARTED, () => {
             client?.talk(greeting).catch((err: unknown) => console.error('[AnamPreview] talk() failed:', err))
           })
@@ -148,6 +215,19 @@ export function AnamPreview({
   }, [armed, greeting, stopAfterGreeting, micEnabled, avatarId, systemPrompt])
 
   if (!HAS_KEYS) {
+    // When caller owns the background (transparentBg + manualStart poster pattern),
+    // render a transparent container so the poster shows through.
+    if (transparentBg) {
+      return <div className={`relative overflow-hidden ${className}`} />
+    }
+    // When a poster is available, show it instead of the error message.
+    if (posterUrl) {
+      return (
+        <div className={`relative overflow-hidden ${className}`}>
+          <img src={posterUrl} alt="" className="w-full h-full object-cover" />
+        </div>
+      )
+    }
     return (
       <div className={`relative bg-neutral-900 overflow-hidden flex items-center justify-center aspect-video ${className}`}>
         <div className="flex flex-col items-center gap-2.5 text-center px-6">
