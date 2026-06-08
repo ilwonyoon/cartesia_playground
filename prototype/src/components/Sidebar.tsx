@@ -80,9 +80,10 @@ const ORG_MENU = [
 interface SidebarProps {
   active?: string
   onNavigate?: (label: string) => void
+  onResetDemo?: () => void
 }
 
-export function Sidebar({ active = 'Voice Agents', onNavigate }: SidebarProps) {
+export function Sidebar({ active = 'Voice Agents', onNavigate, onResetDemo }: SidebarProps) {
   const [orgOpen, setOrgOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
@@ -104,9 +105,9 @@ export function Sidebar({ active = 'Voice Agents', onNavigate }: SidebarProps) {
   return (
     <aside className="w-[207px] flex-shrink-0 bg-neutral-300 flex flex-col h-screen sticky top-0 overflow-y-auto scrollbar-none border-r border-neutral-400/50">
 
-      {/* Logo */}
+      {/* Logo — double-click resets demo state (analysis replay, etc.) */}
       <div className="pt-5 pb-2 px-4">
-        <div className="pl-1">
+        <div className="pl-1 cursor-pointer" onClick={onResetDemo}>
           <CartesiaLogo width={140} height={20} />
         </div>
       </div>

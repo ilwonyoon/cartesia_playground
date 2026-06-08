@@ -5,6 +5,7 @@ interface AppLayoutProps {
   children: ReactNode
   active?: string
   onNavigate?: (label: string) => void
+  onResetDemo?: () => void
   /* Full-bleed pages (e.g. agent detail) own the entire Main area —
      no centered 896px column, no vertical padding. */
   fullBleed?: boolean
@@ -14,10 +15,10 @@ interface AppLayoutProps {
   wide?: boolean
 }
 
-export function AppLayout({ children, active, onNavigate, fullBleed = false, wide = false }: AppLayoutProps) {
+export function AppLayout({ children, active, onNavigate, onResetDemo, fullBleed = false, wide = false }: AppLayoutProps) {
   return (
     <div className="flex min-h-screen bg-neutral-100">
-      <Sidebar active={active} onNavigate={onNavigate} />
+      <Sidebar active={active} onNavigate={onNavigate} onResetDemo={onResetDemo} />
       {fullBleed ? (
         /* Full-bleed pages own a fixed-viewport shell: the main area never scrolls
            itself (overflow-hidden, h-screen) so the page can confine scrolling to an

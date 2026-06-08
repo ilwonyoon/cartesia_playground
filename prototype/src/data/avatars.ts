@@ -9,6 +9,7 @@ export interface Avatar {
   id: string
   name: string
   role: string
+  expressionStyle?: string     // short descriptor shown in Recommended tab (e.g. "Warm & Approachable")
   industry: 'Finance' | 'Healthcare' | 'Government' | 'Sales' | 'Support' | 'General'
   gender: 'Female' | 'Male'
   pairedVoice: string          // display name of the paired Cartesia voice
@@ -36,6 +37,7 @@ export const AVATARS: Avatar[] = [
     id: 'skylar',
     name: 'Ava',
     role: 'Friendly Guide',
+    expressionStyle: 'Warm & Approachable',
     industry: 'General',
     gender: 'Female',
     pairedVoice: 'Skylar - Friendly Guide',
@@ -69,6 +71,7 @@ export const AVATARS: Avatar[] = [
     id: 'marcus',
     name: 'Theo',
     role: 'Healthcare Coordinator',
+    expressionStyle: 'Calm & Trustworthy',
     industry: 'Healthcare',
     gender: 'Male',
     pairedVoice: 'Daniel - Modern Assistant',
@@ -121,6 +124,7 @@ export const AVATARS: Avatar[] = [
     id: 'luna',
     name: 'Ivy',
     role: 'Customer Support',
+    expressionStyle: 'Confident & Clear',
     industry: 'Support',
     gender: 'Female',
     pairedVoice: 'Katie - Friendly Fixer',
@@ -133,6 +137,57 @@ export const AVATARS: Avatar[] = [
     anamPersonaId: '05eb3c1f-50ee-42c5-accc-4606bfaa9276', // Mia (Customer Support)
     greeting: "Hi, I'm Ivy! Billing, a bug, or just getting started — I've got you. What can I help with?",
     systemPrompt: 'You are Ivy, a customer support agent. Be warm, empathetic, and efficient. Keep responses to 2-3 sentences.',
+  },
+
+  /* ── Extra catalog faces (poster-only, no live preview) ──────────────
+     Real Anam face stills used to populate the "All avatars" grid so it
+     scrolls. These are demo-only: no videoUrl / anamPersonaId, so Play
+     shows the still and the live session is reserved for the recommended
+     three. gender inferred from the source face; style is Realistic. */
+  {
+    id: 'cara', name: 'Cara', role: 'Onboarding Specialist', industry: 'General', gender: 'Female',
+    pairedVoice: 'Ella - Caring Scout', pairedVoiceId: 'v9', emoji: '👩', bgColor: 'bg-green-100',
+    expressiveness: 60, style: 'Realistic', imageUrl: '/avatars/cara_windowdesk.jpeg',
+  },
+  {
+    id: 'layla', name: 'Layla', role: 'Community Manager', industry: 'General', gender: 'Female',
+    pairedVoice: 'Cathy - Coworker', pairedVoiceId: 'v13', emoji: '👩', bgColor: 'bg-purple-100',
+    expressiveness: 70, style: 'Realistic', imageUrl: '/avatars/layla_home.png',
+  },
+  {
+    id: 'alister', name: 'Alister', role: 'Account Executive', industry: 'Sales', gender: 'Male',
+    pairedVoice: 'Blake - Helpful Agent', pairedVoiceId: 'v11', emoji: '👨‍💼', bgColor: 'bg-orange-100',
+    expressiveness: 75, style: 'Realistic', imageUrl: '/avatars/alister_desk.jpeg',
+  },
+  {
+    id: 'finn', name: 'Finn', role: 'Technical Support', industry: 'Support', gender: 'Male',
+    pairedVoice: 'Daniel - Modern Assistant', pairedVoiceId: 'v5', emoji: '👨', bgColor: 'bg-blue-100',
+    expressiveness: 55, style: 'Realistic', imageUrl: '/avatars/finn_lean.png',
+  },
+  {
+    id: 'hunter', name: 'Hunter', role: 'Sales Development', industry: 'Sales', gender: 'Male',
+    pairedVoice: 'Corey - Supportive Buddy', pairedVoiceId: 'v2', emoji: '👨‍💼', bgColor: 'bg-orange-100',
+    expressiveness: 80, style: 'Realistic', imageUrl: '/avatars/hunter_table.png',
+  },
+  {
+    id: 'kevin', name: 'Kevin', role: 'Claims Specialist', industry: 'Finance', gender: 'Male',
+    pairedVoice: 'Ronald - Thinker', pairedVoiceId: 'v8', emoji: '👨', bgColor: 'bg-blue-100',
+    expressiveness: 45, style: 'Realistic', imageUrl: '/avatars/kevin_table.png',
+  },
+  {
+    id: 'leo-desk', name: 'Leon', role: 'Loan Advisor', industry: 'Finance', gender: 'Male',
+    pairedVoice: 'Archie - Approachable Mate', pairedVoiceId: 'v4', emoji: '👨‍💼', bgColor: 'bg-teal-100',
+    expressiveness: 50, style: 'Realistic', imageUrl: '/avatars/leo_desk.jpeg',
+  },
+  {
+    id: 'pablo', name: 'Pablo', role: 'Benefits Counselor', industry: 'Government', gender: 'Male',
+    pairedVoice: 'Daniel - Modern Assistant', pairedVoiceId: 'v5', emoji: '👨', bgColor: 'bg-purple-100',
+    expressiveness: 55, style: 'Realistic', imageUrl: '/avatars/pablo_desk.jpeg',
+  },
+  {
+    id: 'richard', name: 'Richard', role: 'Intake Coordinator', industry: 'Healthcare', gender: 'Male',
+    pairedVoice: 'Blake - Helpful Agent', pairedVoiceId: 'v11', emoji: '👨‍⚕️', bgColor: 'bg-teal-100',
+    expressiveness: 50, style: 'Realistic', imageUrl: '/avatars/richard_table.png',
   },
 ]
 
@@ -175,4 +230,25 @@ export function getRecommendedFaces(): Avatar[] {
 /** Order avatars so live-previewable faces come first (then by declaration). */
 export function sortByLivePreview(avatars: Avatar[]): Avatar[] {
   return [...avatars].sort((a, b) => Number(hasLivePreview(b)) - Number(hasLivePreview(a)))
+}
+
+/* ── Face filters (Face tab) ───────────────────────────────────────
+   The Face tab mirrors the Voice Library's search + dropdown pattern.
+   Filterable axes that the data actually supports: gender and style. */
+export const FACE_STYLES: Avatar['style'][] = [...new Set(AVATARS.map(a => a.style))]
+
+export function filterFaces(
+  faces: Avatar[],
+  { search, gender = null, style = null }: {
+    search: string
+    gender?: string | null
+    style?: string | null
+  },
+): Avatar[] {
+  return faces.filter(a => {
+    const matchesSearch = (a.name + a.role + a.industry).toLowerCase().includes(search.toLowerCase())
+    const matchesGender = !gender || a.gender === gender
+    const matchesStyle = !style || a.style === style
+    return matchesSearch && matchesGender && matchesStyle
+  })
 }

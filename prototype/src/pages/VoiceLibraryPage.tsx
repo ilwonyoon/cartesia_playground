@@ -1,13 +1,21 @@
 import { useState } from 'react'
 import { cn } from '../lib/utils'
 import { SearchField } from '../components/ui/SearchField'
-import { FilterButton } from '../components/ui/FilterButton'
+import { FilterDropdown } from '../components/ui/FilterDropdown'
 import { VoiceRow } from '../components/voice/VoiceRow'
 import { PlusIcon } from '../components/voice/VoiceIcons'
 import {
-  VOICES, VOICE_TABS, filterVoices,
+  VOICES, VOICE_TABS, VOICE_LANGUAGES, VOICE_ACCENTS, filterVoices,
   type VoiceTabKey, type GenderFilter,
 } from '../data/voices'
+
+/* Filter options derived from the catalog (single source of truth). */
+const GENDER_OPTIONS = [
+  { value: 'Feminine', label: 'Feminine' },
+  { value: 'Masculine', label: 'Masculine' },
+]
+const LANGUAGE_OPTIONS = VOICE_LANGUAGES.map(l => ({ value: l, label: l }))
+const ACCENT_OPTIONS = VOICE_ACCENTS.map(a => ({ value: a, label: a }))
 
 /* ── Voice Library (Figma node 9:362) ──────────────────────────────
    Full-width header bar + 1200px content box. Search / filters / tabs
@@ -18,9 +26,17 @@ export function VoiceLibraryPage() {
   const [playing, setPlaying] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<VoiceTabKey>('Featured')
-  const [genderFilter, setGenderFilter] = useState<GenderFilter>('Any gender')
+  const [gender, setGender] = useState<string | null>(null)
+  const [language, setLanguage] = useState<string | null>(null)
+  const [accent, setAccent] = useState<string | null>(null)
 
-  const filtered = filterVoices(VOICES, { search, gender: genderFilter, tab: activeTab })
+  const filtered = filterVoices(VOICES, {
+    search,
+    gender: (gender ?? 'Any gender') as GenderFilter,
+    tab: activeTab,
+    language,
+    accent,
+  })
 
   return (
     <div className="flex flex-col">
@@ -63,12 +79,9 @@ export function VoiceLibraryPage() {
             </div>
 
             <div className="flex items-center gap-2 pb-2">
-              <FilterButton
-                label={genderFilter}
-                onClick={() => setGenderFilter(g => g === 'Any gender' ? 'Feminine' : g === 'Feminine' ? 'Masculine' : 'Any gender')}
-              />
-              <FilterButton label="Tags" />
-              <FilterButton label="Any language" />
+              <FilterDropdown anyLabel="Any gender" options={GENDER_OPTIONS} value={gender} onChange={setGender} />
+              <FilterDropdown anyLabel="Any language" options={LANGUAGE_OPTIONS} value={language} onChange={setLanguage} />
+              <FilterDropdown anyLabel="Any accent" options={ACCENT_OPTIONS} value={accent} onChange={setAccent} searchable />
             </div>
           </div>
 
