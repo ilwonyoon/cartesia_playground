@@ -9,7 +9,7 @@ import { AnamPreview } from '../avatar/AnamPreview'
 import { GlassPill } from '../ui/GlassPill'
 import { FACE_AGENT_GREETING } from './avatarGreeting'
 
-const POSTER = '/avatars/mia_studio.png'
+const POSTER = '/avatars/sophie_sofa.png'
 const HAS_ANAM_KEYS = !!(
   import.meta.env.VITE_ANAM_API_KEY && import.meta.env.VITE_ANAM_PERSONA_ID
 )
@@ -41,6 +41,7 @@ export function FloatingAvatarWidget({ onOpenModal, hidden = false }: FloatingAv
             showCoverArt={false}
             posterUrl={POSTER}
             manualStart={false}
+            showHud={false}
             className="!aspect-[3/4] rounded-none"
           />
         ) : (

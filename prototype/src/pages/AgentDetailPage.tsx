@@ -307,10 +307,11 @@ function ChatRow({ role, content, streaming }: { role: 'agent' | 'user'; content
    1. idle: floating poster card bottom-right with Play button
    2. playing: same floating card + Anam live + expand icon top-right of card
    3. expanded: fullscreen avatar top (16:9) + chat thread bottom */
-function WebPreview({ avatar, onPickAvatar, agentSystemPrompt }: {
+function WebPreview({ avatar, onPickAvatar, agentSystemPrompt, agentInitialMessage }: {
   avatar: Avatar | null
   onPickAvatar: () => void
   agentSystemPrompt: string
+  agentInitialMessage: string
 }) {
   type WidgetState = 'idle' | 'playing' | 'expanded'
   const [widgetState, setWidgetState] = useState<WidgetState>('idle')
@@ -321,7 +322,7 @@ function WebPreview({ avatar, onPickAvatar, agentSystemPrompt }: {
   const streamingMsgIdRef = useRef<number | null>(null)
   const chatRef = useRef<HTMLDivElement>(null)
 
-  const greeting = DEFAULT_INITIAL_MESSAGE
+  const greeting = agentInitialMessage
 
   const handleMessage = useCallback((role: 'agent' | 'user' | 'agent:stream' | 'agent:done', content: string) => {
     if (role === 'agent:stream') {
@@ -506,8 +507,8 @@ function WebPreview({ avatar, onPickAvatar, agentSystemPrompt }: {
   )
 }
 
-function PhonePreview() {
-  const { callState, talkState, agentAmplitude, userAmplitude, error, startCall, endCall, toggleMute, muted } = useVoiceAgent()
+function PhonePreview({ agentSystemPrompt, agentInitialMessage }: { agentSystemPrompt: string; agentInitialMessage: string }) {
+  const { callState, talkState, agentAmplitude, userAmplitude, error, startCall, endCall, toggleMute, muted } = useVoiceAgent({ systemPrompt: agentSystemPrompt, initialMessage: agentInitialMessage })
   const duration = useDuration(callState === 'active')
 
   const isActive = callState === 'active'
@@ -609,11 +610,12 @@ function PhonePreview() {
 /* Preview panel — mirrors the deploy channels: a Web tab (floating widget →
    click → live face) and a Phone tab (PSTN call test). Web is the default
    when a face is attached, since that's where the face is meant to live. */
-function PreviewPanel({ onClose, avatar, onPickAvatar, agentSystemPrompt }: {
+function PreviewPanel({ onClose, avatar, onPickAvatar, agentSystemPrompt, agentInitialMessage }: {
   onClose: () => void
   avatar: Avatar | null
   onPickAvatar: () => void
   agentSystemPrompt: string
+  agentInitialMessage: string
 }) {
   const [mode, setMode] = useState<PreviewMode>('Phone')
 
@@ -641,10 +643,10 @@ function PreviewPanel({ onClose, avatar, onPickAvatar, agentSystemPrompt }: {
       </div>
 
       <div className="flex-1 relative flex flex-col overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none z-0" style={{backgroundImage: 'linear-gradient(rgba(0,0,0,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.035) 1px, transparent 1px)', backgroundSize: '7px 7px', backgroundPosition: '3.5px 3.5px'}} />
+        <div className="absolute inset-0 pointer-events-none z-0" style={{backgroundImage: 'linear-gradient(rgba(0,0,0,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.018) 1px, transparent 1px)', backgroundSize: '7px 7px', backgroundPosition: '3.5px 3.5px'}} />
         {mode === 'Widget'
-          ? <WebPreview avatar={avatar} onPickAvatar={onPickAvatar} agentSystemPrompt={agentSystemPrompt} />
-          : <PhonePreview />
+          ? <WebPreview avatar={avatar} onPickAvatar={onPickAvatar} agentSystemPrompt={agentSystemPrompt} agentInitialMessage={agentInitialMessage} />
+          : <PhonePreview agentSystemPrompt={agentSystemPrompt} agentInitialMessage={agentInitialMessage} />
         }
       </div>
     </aside>
@@ -920,6 +922,7 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
   const [activeTab, setActiveTab] = useState<Tab>('Configuration')
   const [previewOpen, setPreviewOpen] = useState(true)
   const [agentSystemPrompt, setAgentSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
+  const [agentInitialMessage, setAgentInitialMessage] = useState(DEFAULT_INITIAL_MESSAGE)
   const hasFace = !!selectedAvatar
   /* This agent already has a live phone number, so the header shows the
      number + Call▾ (not "Get Phone Number"). */
@@ -1054,6 +1057,8 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
                 onSelectAvatar={onSelectAvatar ?? (() => {})}
                 systemPrompt={agentSystemPrompt}
                 onSystemPromptChange={setAgentSystemPrompt}
+                initialMessage={agentInitialMessage}
+                onInitialMessageChange={setAgentInitialMessage}
               />
             ) : activeTab === 'Deployment' ? (
               <>
@@ -1154,6 +1159,7 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
             avatar={selectedAvatar ?? null}
             onPickAvatar={() => setActiveTab('Configuration')}
             agentSystemPrompt={agentSystemPrompt}
+            agentInitialMessage={agentInitialMessage}
           />
         </div>
       </div>

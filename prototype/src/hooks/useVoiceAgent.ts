@@ -15,6 +15,11 @@ export interface Message {
   id: number
 }
 
+export interface VoiceAgentOptions {
+  systemPrompt?: string
+  initialMessage?: string
+}
+
 export interface VoiceAgentState {
   callState: CallState
   talkState: TalkState
@@ -36,7 +41,7 @@ function pcmRms(float32: Float32Array): number {
 
 let _msgId = 0
 
-export function useVoiceAgent(): VoiceAgentState {
+export function useVoiceAgent({ systemPrompt, initialMessage }: VoiceAgentOptions = {}): VoiceAgentState {
   const [callState, setCallState] = useState<CallState>('idle')
   const [talkState, setTalkState] = useState<TalkState>('listening')
   const [agentAmplitude, setAgentAmplitude] = useState(0)
@@ -118,7 +123,11 @@ export function useVoiceAgent(): VoiceAgentState {
             call_id: `web-${Date.now()}`,
             from_: 'web',
             to: 'agent',
-            agent: { id: null },
+            agent: {
+              id: null,
+              ...(systemPrompt ? { system_prompt: systemPrompt } : {}),
+              ...(initialMessage ? { introduction: initialMessage } : {}),
+            },
             metadata: {},
           }))
           resolve()
@@ -259,7 +268,7 @@ export function useVoiceAgent(): VoiceAgentState {
       setCallState('error')
       cleanup()
     }
-  }, [cleanup, endCall, clearAmpTimeouts])
+  }, [cleanup, endCall, clearAmpTimeouts, systemPrompt, initialMessage])
 
   const toggleMute = useCallback(() => setMuted(v => !v), [])
 

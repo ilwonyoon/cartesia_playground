@@ -21,17 +21,24 @@ load_dotenv()
 
 CARTESIA_VOICE_ID = "e07c00bc-4134-4eae-9ea4-1a55fb45746b"  # Skylar
 
+DEFAULT_SYSTEM_PROMPT = (
+    "You are a friendly voice assistant built with Cartesia. "
+    "Keep responses short — 1-2 sentences. Speak naturally, no lists or bullet points."
+)
+DEFAULT_INTRODUCTION = "Hey! I'm your Cartesia voice assistant. What would you like to talk about?"
+
 async def get_agent(env, call_request):
+    agent_cfg = call_request.agent
+    system_prompt = agent_cfg.system_prompt or DEFAULT_SYSTEM_PROMPT
+    introduction = agent_cfg.introduction or DEFAULT_INTRODUCTION
+
     agent = LlmAgent(
         model="anthropic/claude-sonnet-4-5",
         api_key=os.getenv("ANTHROPIC_API_KEY"),
         tools=[end_call],
         config=LlmConfig(
-            system_prompt=(
-                "You are a friendly voice assistant built with Cartesia. "
-                "Keep responses short — 1-2 sentences. Speak naturally, no lists or bullet points."
-            ),
-            introduction="Hey! I'm your Cartesia voice assistant. What would you like to talk about?",
+            system_prompt=system_prompt,
+            introduction=introduction,
         ),
     )
 

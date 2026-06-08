@@ -265,7 +265,9 @@ export function AnamPreview({
             )}
           </>
         ) : (
-          !transparentBg && <div className="absolute inset-0 bg-neutral-900" />
+          posterUrl
+            ? <img src={posterUrl} alt="" className="w-full h-full object-cover" />
+            : !transparentBg && <div className="absolute inset-0 bg-neutral-900" />
         )}
         {status === 'connecting' && (
           <div className="absolute top-4 right-4 flex items-center gap-1.5">

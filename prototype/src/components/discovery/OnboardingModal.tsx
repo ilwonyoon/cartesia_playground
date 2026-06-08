@@ -27,6 +27,7 @@ function Var1({ onGetStarted, onSeeItLive }: { onGetStarted: () => void; onSeeIt
           <AnamPreview
             greeting={FACE_AGENT_GREETING}
             stopAfterGreeting
+            showHud={false}
           />
         </div>
       </div>

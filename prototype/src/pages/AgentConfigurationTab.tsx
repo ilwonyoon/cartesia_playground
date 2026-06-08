@@ -334,13 +334,14 @@ function RightColumnBgSound() {
   )
 }
 
-export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar, systemPrompt, onSystemPromptChange }: {
+export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar, systemPrompt, onSystemPromptChange, initialMessage, onInitialMessageChange }: {
   selectedAvatar: Avatar | null
   onSelectAvatar: (avatar: Avatar | null) => void
   systemPrompt: string
   onSystemPromptChange: (v: string) => void
+  initialMessage: string
+  onInitialMessageChange: (v: string) => void
 }) {
-  const [initialMessage, setInitialMessage] = useState(DEFAULT_INITIAL_MESSAGE)
   const [skipIntro, setSkipIntro] = useState(false)
   const [languageDetection, setLanguageDetection] = useState(false)
 
@@ -380,7 +381,7 @@ export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar, systemPr
             <SectionHeading info>Initial Message</SectionHeading>
             <input
               value={initialMessage}
-              onChange={e => setInitialMessage(e.target.value)}
+              onChange={e => onInitialMessageChange(e.target.value)}
               className="h-8 w-full rounded-[7.2px] border border-neutral-400 bg-white px-[11px] text-[12.8px] text-neutral-900 outline-none focus:border-neutral-600"
             />
             <div className="flex items-center justify-end gap-2">
