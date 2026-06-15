@@ -1,0 +1,72 @@
+import type { ContentEntry } from './types'
+
+export const FLOW_SIM_ENTRIES: ContentEntry[] = [
+  /* ── Flow tab ── */
+  { key: 'flow.title', value: { en: 'Observability', ko: '옵저버빌리티' }, context: 'Tab title. Named for what the surface does — read and test the agent (flow view, live trace, simulation, eval) — not just the diagram.', surface: 'flow', kind: 'title' },
+  { key: 'flow.section.flow', value: { en: 'Flow', ko: '플로우' }, context: 'Jump anchor + section label for the wiring diagram inside Observability.', surface: 'flow', kind: 'label' },
+  { key: 'flow.sub', value: { en: 'How {name} is wired — introduction, prompt tasks, tools, and handoffs, as Line runs them.', ko: '{name}의 배선 — Line이 실제로 실행하는 인트로덕션, 프롬프트 태스크, 툴, 핸드오프.' }, surface: 'flow', kind: 'hint' },
+  { key: 'flow.stats', value: { en: '{steps} steps · {paths} paths', ko: '{steps}단계 · {paths}개 경로' }, surface: 'flow', kind: 'status' },
+  { key: 'flow.compiled-note', value: { en: "Compiled from this agent's prompt & tools", ko: '이 에이전트의 프롬프트·툴에서 컴파일됨' }, surface: 'flow', kind: 'hint' },
+  { key: 'flow.tracing-badge', value: { en: 'Tracing live call', ko: '라이브 통화 트레이싱' }, surface: 'flow', kind: 'badge' },
+  { key: 'flow.empty', value: { en: 'No flow yet — describe your agent in the Build tab and the call flow will draw itself here.', ko: '아직 플로우가 없습니다 — Build 탭에서 에이전트를 설명하면 콜 플로우가 여기에 그려집니다.' }, surface: 'flow', kind: 'empty' },
+  { key: 'flow.kind.start', value: { en: 'Start', ko: '시작' }, context: 'Node kind label. The mono Line primitive beside it stays literal.', surface: 'flow', kind: 'label' },
+  { key: 'flow.kind.conversation', value: { en: 'Conversation', ko: '대화' }, surface: 'flow', kind: 'label' },
+  { key: 'flow.kind.subagent', value: { en: 'Subagent', ko: '서브에이전트' }, surface: 'flow', kind: 'label' },
+  { key: 'flow.kind.tool', value: { en: 'Tool', ko: '툴' }, surface: 'flow', kind: 'label' },
+  { key: 'flow.kind.transfer', value: { en: 'Transfer', ko: '이관' }, surface: 'flow', kind: 'label' },
+  { key: 'flow.kind.end', value: { en: 'End call', ko: '통화 종료' }, surface: 'flow', kind: 'label' },
+
+  /* ── Simulation ── */
+  { key: 'sim.title', value: { en: 'Simulation', ko: '시뮬레이션' }, surface: 'simulation', kind: 'title' },
+  { key: 'sim.badge', value: { en: '{n} test callers', ko: '테스트 콜러 {n}명' }, surface: 'simulation', kind: 'badge' },
+  { key: 'sim.tooltip', value: { en: "Not live calls — a text simulation. Five caller personas, cooperative to adversarial, play out full conversations against this agent's prompt and knowledge base, so you can read where the design holds or breaks before a real call.", ko: '실제 통화가 아닌 텍스트 시뮬레이션입니다. 협조적인 콜러부터 적대적인 콜러까지 5개 페르소나가 이 에이전트의 프롬프트와 지식 베이스만으로 전체 대화를 진행해, 실제 콜 전에 설계가 어디서 버티고 어디서 깨지는지 보여줍니다.' }, context: 'Hover tooltip on the ⓘ beside the Simulation title — must make "text-to-text, persona-driven, not a phone call" unmistakable.', surface: 'simulation', kind: 'hint' },
+  { key: 'sim.run', value: { en: 'Run test callers', ko: '테스트 콜러 실행' }, surface: 'simulation', kind: 'cta' },
+  { key: 'sim.running', value: { en: 'Running…', ko: '실행 중…' }, surface: 'simulation', kind: 'status' },
+  { key: 'sim.intro', value: { en: 'Good-faith and bad-faith callers run against this agent in text — read exactly where the design holds or breaks before a real call.', ko: '선의·악의 콜러가 이 에이전트를 텍스트로 시험합니다 — 실제 통화 전에 설계가 버티는 곳과 깨지는 곳을 그대로 읽어보세요.' }, surface: 'simulation', kind: 'hint' },
+  { key: 'sim.faith.good', value: { en: 'Good faith', ko: '선의 콜러' }, surface: 'simulation', kind: 'badge' },
+  { key: 'sim.faith.bad', value: { en: 'Bad faith', ko: '악의 콜러' }, surface: 'simulation', kind: 'badge' },
+  { key: 'sim.outcome.handled', value: { en: 'Handled', ko: '통과' }, surface: 'simulation', kind: 'badge' },
+  { key: 'sim.outcome.breaks.one', value: { en: '{n} break', ko: '{n}곳 깨짐' }, surface: 'simulation', kind: 'badge' },
+  { key: 'sim.outcome.breaks.other', value: { en: '{n} breaks', ko: '{n}곳 깨짐' }, surface: 'simulation', kind: 'badge' },
+  { key: 'sim.outcome.failed', value: { en: 'Failed', ko: '실패' }, surface: 'simulation', kind: 'error' },
+  { key: 'sim.replay', value: { en: 'Replay path on canvas', ko: '캔버스에서 경로 재생' }, surface: 'simulation', kind: 'cta' },
+  { key: 'sim.speaker.agent', value: { en: 'Agent', ko: '에이전트' }, surface: 'simulation', kind: 'label' },
+  { key: 'sim.speaker.caller', value: { en: 'Caller', ko: '콜러' }, surface: 'simulation', kind: 'label' },
+  { key: 'sim.persona.cooperative', value: { en: 'Cooperative caller', ko: '협조적인 콜러' }, surface: 'simulation', kind: 'label' },
+  { key: 'sim.persona.meandering', value: { en: 'Chatty caller', ko: '수다스러운 콜러' }, surface: 'simulation', kind: 'label' },
+  { key: 'sim.persona.frustrated', value: { en: 'Frustrated customer', ko: '화가 난 고객' }, surface: 'simulation', kind: 'label' },
+  { key: 'sim.persona.prober', value: { en: 'Policy prober', ko: '정책 찔러보기' }, surface: 'simulation', kind: 'label' },
+  { key: 'sim.persona.injector', value: { en: 'Prompt injector', ko: '프롬프트 인젝터' }, surface: 'simulation', kind: 'label' },
+
+  /* ── Eval ── */
+  { key: 'eval.title', value: { en: 'Eval', ko: '평가' }, surface: 'eval', kind: 'title' },
+  { key: 'eval.badge.one', value: { en: '{n} deviation from design', ko: '설계 이탈 {n}건' }, surface: 'eval', kind: 'badge' },
+  { key: 'eval.badge.other', value: { en: '{n} deviations from design', ko: '설계 이탈 {n}건' }, surface: 'eval', kind: 'badge' },
+  { key: 'eval.fix', value: { en: 'Fix with builder', ko: '빌더로 수정' }, surface: 'eval', kind: 'cta' },
+
+  /* ── Knowledge base tab ── */
+  { key: 'kb.title', value: { en: 'Knowledge Base', ko: '지식 베이스' }, surface: 'kb', kind: 'title' },
+  { key: 'kb.sub', value: { en: 'Documents your agent can look up during a call with its knowledge_base tool.', ko: '에이전트가 통화 중 knowledge_base 툴로 조회하는 문서입니다.' }, surface: 'kb', kind: 'hint' },
+  { key: 'kb.from-conversation', value: { en: 'From conversation', ko: '대화에서 추출' }, surface: 'kb', kind: 'badge' },
+  { key: 'kb.empty', value: { en: 'No documents yet.', ko: '아직 문서가 없습니다.' }, surface: 'kb', kind: 'empty' },
+
+  /* ── Deployment + Widget tabs ── */
+  { key: 'deploy.production.title', value: { en: 'Production Version', ko: '프로덕션 버전' }, surface: 'deploy', kind: 'title' },
+  { key: 'deploy.field.version', value: { en: 'Version', ko: '버전' }, surface: 'deploy', kind: 'label' },
+  { key: 'deploy.field.status', value: { en: 'Status', ko: '상태' }, surface: 'deploy', kind: 'label' },
+  { key: 'deploy.field.deployed', value: { en: 'Deployed', ko: '배포됨' }, surface: 'deploy', kind: 'label' },
+  { key: 'deploy.field.webhook', value: { en: 'Webhook', ko: '웹훅' }, surface: 'deploy', kind: 'label' },
+  { key: 'deploy.field.live-on', value: { en: 'Live on', ko: '서비스 채널' }, surface: 'deploy', kind: 'label' },
+  { key: 'deploy.history.title', value: { en: 'Version History', ko: '버전 히스토리' }, surface: 'deploy', kind: 'title' },
+  { key: 'deploy.history.cta', value: { en: 'Deploy', ko: '배포' }, surface: 'deploy', kind: 'cta' },
+  { key: 'deploy.badge.production', value: { en: 'Production', ko: '프로덕션' }, surface: 'deploy', kind: 'badge' },
+  { key: 'deploy.widget.title', value: { en: 'Widget', ko: '위젯' }, surface: 'deploy', kind: 'title' },
+  { key: 'deploy.widget.sub', value: { en: 'Embed your agent in a website or app. The snippet stays in sync with your published version.', ko: '에이전트를 웹사이트나 앱에 임베드하세요. 스니펫은 게시된 버전과 동기화됩니다.' }, surface: 'deploy', kind: 'hint' },
+  { key: 'deploy.web-app.title', value: { en: 'Web / Application', ko: '웹 / 애플리케이션' }, surface: 'deploy', kind: 'title' },
+  { key: 'deploy.avatar-badge', value: { en: 'Avatar', ko: '아바타' }, surface: 'deploy', kind: 'badge' },
+  { key: 'deploy.publish-banner', value: { en: 'Publish to activate this embed on the web.', ko: '웹에서 이 임베드를 활성화하려면 게시하세요.' }, surface: 'deploy', kind: 'hint' },
+  { key: 'deploy.integration-badge', value: { en: 'Integration', ko: '통합' }, surface: 'deploy', kind: 'badge' },
+  { key: 'deploy.preview.live', value: { en: 'Live preview', ko: '라이브 미리보기' }, surface: 'deploy', kind: 'status' },
+  { key: 'deploy.preview.static', value: { en: 'Preview', ko: '미리보기' }, surface: 'deploy', kind: 'status' },
+  { key: 'deploy.no-avatar-hint', value: { en: 'Pick an avatar in Configuration to generate the embed snippet.', ko: '구성에서 아바타를 선택하면 임베드 스니펫이 생성됩니다.' }, surface: 'deploy', kind: 'empty' },
+]

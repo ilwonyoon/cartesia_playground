@@ -39,9 +39,13 @@ export function DesignSystemPage() {
       <section className="flex flex-col gap-3">
         <p className="text-[11px] font-[600] text-neutral-500 uppercase tracking-wider">Badges</p>
         <div className="flex items-center gap-4">
-          <Badge variant="beta">Beta</Badge>
-          <div className="flex items-center gap-1.5 text-[13px] text-neutral-700"><Badge variant="status" color="green" /> Active</div>
-          <div className="flex items-center gap-1.5 text-[13px] text-neutral-500"><Badge variant="status" color="gray" /> Inactive</div>
+          <Badge tone="beta">Beta</Badge>
+          <Badge>Production</Badge>
+          <Badge size="sm">Draft</Badge>
+          <Badge tone="neutral" size="sm">From conversation</Badge>
+          <Badge tone="inverse">New</Badge>
+          <div className="flex items-center gap-1.5 text-[13px] text-neutral-700"><span className="inline-block w-2 h-2 rounded-full bg-brand-light" /> Active</div>
+          <div className="flex items-center gap-1.5 text-[13px] text-neutral-500"><span className="inline-block w-2 h-2 rounded-full bg-neutral-400" /> Inactive</div>
         </div>
       </section>
 

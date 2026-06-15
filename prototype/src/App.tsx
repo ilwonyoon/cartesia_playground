@@ -1,10 +1,12 @@
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useNavigate, useParams, matchPath } from 'react-router-dom'
 import { useState } from 'react'
+import type { AgentNavContext } from './components/Sidebar'
 import { AppLayout } from './components/AppLayout'
 import { WelcomePage } from './pages/WelcomePage'
 import { VoiceAgentsPage } from './pages/VoiceAgentsPage'
 import { VoiceLibraryPage } from './pages/VoiceLibraryPage'
 import { DesignSystemPage } from './pages/DesignSystemPage'
+import { ContentSystemPage } from './pages/ContentSystemPage'
 import { ButtonStateSandbox } from './pages/ButtonStateSandbox'
 import { AgentDetailPage } from './pages/AgentDetailPage'
 import { AvatarsPage } from './pages/AvatarsPage'
@@ -42,7 +44,14 @@ function isFullBleed(pathname: string) {
 }
 
 function isWide(pathname: string) {
-  return pathname === '/voices'
+  return pathname === '/voices' || pathname === '/__content_system'
+}
+
+/* Remounts the detail page per agent id so each stored agent's config
+   initializes cleanly (tab changes keep the same key). */
+function AgentDetailRoute(props: React.ComponentProps<typeof AgentDetailPage>) {
+  const { id } = useParams<{ id?: string }>()
+  return <AgentDetailPage key={id ?? 'demo'} {...props} />
 }
 
 function ComingSoon({ label }: { label: string }) {
@@ -58,6 +67,32 @@ function AppShell() {
   const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(() => getRecommendedFaces()[0] ?? null)
+  /* Agent-scoped sidebar state: the builder reports its live name and the
+     per-section counts (knowledge docs, flow steps) up here so the nav can
+     show them while the conversation builds the agent. */
+  const [builderName, setBuilderName] = useState('untitled-agent')
+  const [agentCounts, setAgentCounts] = useState<Record<string, number>>({})
+
+  const builderMatch = matchPath('/agents/new/voice/:tab?', location.pathname)
+  const agentIdMatch = builderMatch ? null : matchPath('/agents/:id/:tab?', location.pathname)
+  const agentContext: AgentNavContext | null = builderMatch
+    ? {
+        name: builderName,
+        builder: true,
+        activeTab: builderMatch.params.tab ?? 'configuration',
+        counts: agentCounts,
+        onSelectTab: (slug) => navigate(`/agents/new/voice/${slug}`),
+        onBack: () => navigate('/agents'),
+      }
+    : agentIdMatch?.params.id
+      ? {
+          name: agentIdMatch.params.id === 'demo' ? 'open-dialogue' : agentIdMatch.params.id,
+          activeTab: agentIdMatch.params.tab ?? 'configuration',
+          counts: agentCounts,
+          onSelectTab: (slug) => navigate(`/agents/${agentIdMatch.params.id}/${slug}`),
+          onBack: () => navigate('/agents'),
+        }
+      : null
 
   function handleResetDemo() {
     setSelectedAvatar(null)
@@ -73,6 +108,7 @@ function AppShell() {
     const path = LABEL_TO_PATH[label]
     if (path) navigate(path)
     else if (label === '__design_system') navigate('/__design_system')
+    else if (label === '__content_system') navigate('/__content_system')
     else if (label === '__button_states') navigate('/__button_states')
     else if (label === '__agent_detail') navigate('/agents/demo')
     else if (label === 'Avatar Library') navigate('/avatars')
@@ -90,6 +126,8 @@ function AppShell() {
         onResetDemo={handleResetDemo}
         fullBleed={fullBleed}
         wide={wide}
+        agentContext={agentContext}
+        onOpenAgent={(id) => navigate(`/agents/${id}`)}
       >
         <Routes>
           <Route path="/" element={<WelcomePage />} />
@@ -100,11 +138,22 @@ function AppShell() {
               modalOpen={modalOpen}
             />
           } />
-          <Route path="/agents/:id" element={
+          <Route path="/agents/new/voice/:tab?" element={
             <AgentDetailPage
+              builderMode
               onBack={() => navigate('/agents')}
               selectedAvatar={selectedAvatar}
               onSelectAvatar={setSelectedAvatar}
+              onNameChange={setBuilderName}
+              onCountsChange={setAgentCounts}
+            />
+          } />
+          <Route path="/agents/:id/:tab?" element={
+            <AgentDetailRoute
+              onBack={() => navigate('/agents')}
+              selectedAvatar={selectedAvatar}
+              onSelectAvatar={setSelectedAvatar}
+              onCountsChange={setAgentCounts}
             />
           } />
           <Route path="/avatars" element={<AvatarsPage />} />
@@ -112,6 +161,7 @@ function AppShell() {
           <Route path="/avatars/:id" element={<AvatarsPage />} />
           <Route path="/voices" element={<VoiceLibraryPage />} />
           <Route path="/__design_system" element={<DesignSystemPage />} />
+          <Route path="/__content_system" element={<ContentSystemPage />} />
           <Route path="/__button_states" element={<ButtonStateSandbox />} />
           <Route path="/tts" element={<ComingSoon label="Text-to-Speech" />} />
           <Route path="/stt" element={<ComingSoon label="Speech-to-Text" />} />

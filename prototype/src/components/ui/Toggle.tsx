@@ -1,4 +1,5 @@
 import { cn } from '../../lib/utils'
+import { Badge } from './Badge'
 
 interface ToggleProps {
   checked: boolean
@@ -35,7 +36,7 @@ export function Toggle({ checked, onChange, label, badge, description, disabled 
             <div className="flex items-center gap-1.5">
               <span className="text-[13px] font-[500] text-text-primary">{label}</span>
               {badge && (
-                <span className="px-1.5 py-0.5 rounded text-[11px] font-[500] bg-blue-100 text-blue-700">{badge}</span>
+                <Badge tone="beta" size="sm">{badge}</Badge>
               )}
             </div>
           )}

@@ -1,15 +1,28 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   ChevronRight, ChevronDown, Phone, GitBranch,
   ExternalLink, MoreVertical, X, Globe, Hash, AlertCircle,
-  Maximize2, Minimize2, Play,
+  FileText, Info,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { AgentConfigurationTab } from './AgentConfigurationTab'
 import { useVoiceAgent } from '../hooks/useVoiceAgent'
 import { AnamPreview } from '../components/avatar/AnamPreview'
 import { CodeBlock, type CodeLang } from '../components/ui/CodeBlock'
+import { Badge } from '../components/ui/Badge'
+import { Spinner } from '../components/ui/Spinner'
 import type { Avatar } from '../data/avatars'
+import { VOICES, type Voice } from '../data/voices'
+import { BuilderPanel } from '../components/builder/BuilderPanel'
+import { FlowCanvas } from '../components/flow/FlowCanvas'
+import { DEMO_FLOW, type AgentFlow } from '../lib/agentFlow'
+import { traceCall, type TraceTurn } from '../lib/flowTracer'
+import { simulateCall, SIM_PERSONAS, type SimPersona, type SimResult } from '../lib/simulator'
+import type { VerifySignals } from '../lib/builderPlaybook'
+import { getAgent, upsertAgent, removeAgent } from '../lib/agentStore'
+import { useContent } from '../content/store'
+import { upsertDocs, type AgentDraft, type DraftPatch, type KnowledgeDoc } from '../lib/agentDraft'
 import { DEFAULT_SYSTEM_PROMPT, DEFAULT_INITIAL_MESSAGE } from './AgentConfigurationTab'
 
 /* ── Agent detail (Figma 56:1715 / structural ref 77:550) ─────────────
@@ -26,11 +39,23 @@ import { DEFAULT_SYSTEM_PROMPT, DEFAULT_INITIAL_MESSAGE } from './AgentConfigura
    Colors stay on Cartesia tokens — brand green, warm neutrals — never the
    reference's black Publish / blue-yellow badges. */
 
-const TABS = [
-  'Configuration', 'Deployment', 'Widget', 'Environment',
-  'Knowledge Base', 'Metrics', 'Calls', 'Settings',
-] as const
-type Tab = (typeof TABS)[number]
+/* Sections live in the URL (and the agent-scoped sidebar) — the page no
+   longer draws its own horizontal tab bar. */
+const TAB_TO_SLUG = {
+  Configuration: 'configuration',
+  Flow: 'flow',
+  Deployment: 'deployment',
+  Widget: 'widget',
+  Environment: 'environment',
+  'Knowledge Base': 'knowledge-base',
+  Metrics: 'metrics',
+  Calls: 'calls',
+  Settings: 'settings',
+} as const
+type Tab = keyof typeof TAB_TO_SLUG
+const SLUG_TO_TAB = Object.fromEntries(
+  Object.entries(TAB_TO_SLUG).map(([tab, slug]) => [slug, tab as Tab]),
+) as Record<string, Tab>
 
 const AGENT = {
   name: 'open-dialogue',
@@ -81,6 +106,7 @@ function Field({ label, children }: { label: React.ReactNode; children: React.Re
 
 /* One Version History row. */
 function VersionRow({ version, last }: { version: Version; last?: boolean }) {
+  const t = useContent()
   const [expanded, setExpanded] = useState(false)
   return (
     <div className={cn('min-h-[90px] flex items-center px-1', !last && 'border-b border-neutral-400')}>
@@ -97,9 +123,7 @@ function VersionRow({ version, last }: { version: Version; last?: boolean }) {
         <p className="font-mono text-[14px] font-[500] text-neutral-900 leading-5 truncate">{version.id}</p>
         {version.production && (
           <div className="pt-2">
-            <span className="inline-flex items-center h-5 px-[9px] rounded-full border border-brand/20 bg-brand-tint text-[11.8px] font-[500] text-brand leading-4">
-              Production
-            </span>
+            <Badge>{t('deploy.badge.production')}</Badge>
           </div>
         )}
       </div>
@@ -120,8 +144,6 @@ function VersionRow({ version, last }: { version: Version; last?: boolean }) {
     </div>
   )
 }
-
-type PreviewMode = 'Widget' | 'Phone'
 
 /* Scrolling history waveform — Figma spec: 4px bar, 4px gap, 48px tall, gradient fill */
 function Waveform({ amplitude, active = true, variant = 'agent' }: {
@@ -250,460 +272,194 @@ function useDuration(active: boolean) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-/* 5-dot speaking indicator — name inline with dots.
-   Agent: [name] [● ● ● ● ●]   User: [● ● ● ● ●] [name] */
-function SpeakingDots({ speaker, userName = 'You' }: { speaker: 'agent' | 'user' | 'none'; userName?: string }) {
-  if (speaker === 'none') return null
-  const isAgent = speaker === 'agent'
-  const dots = [0, 1, 2, 3, 4]
-  return (
-    <div className={cn('px-4 flex items-center gap-1.5', isAgent ? 'justify-start' : 'justify-end')}>
-      {isAgent && (
-        <span className="text-[10.5px] font-[500] text-neutral-500">{isAgent ? 'Agent' : userName}</span>
-      )}
-      <div className="flex items-center gap-[3px]" style={{ height: 14 }}>
-        {dots.map(i => (
-          <span
-            key={i}
-            className="speak-bar block w-[3px] rounded-full bg-brand"
-            style={{
-              height: 3 + (i === 2 ? 8 : i === 1 || i === 3 ? 5 : 0),
-              animation: `speakPulse 0.9s ease-in-out ${i * 0.12}s infinite`,
-              opacity: 0.8,
-            }}
-          />
-        ))}
-      </div>
-      {!isAgent && (
-        <span className="text-[10.5px] font-[500] text-neutral-500">{userName}</span>
-      )}
-    </div>
-  )
-}
-
-/* Chat row — agent: label + plain text, user: label + rounded bubble */
-function ChatRow({ role, content, streaming }: { role: 'agent' | 'user'; content: string; streaming?: boolean }) {
-  const isUser = role === 'user'
-  return (
-    <div className={cn('px-4 flex flex-col gap-0.5', isUser ? 'items-end' : 'items-start')}>
-      <span className="text-[10.5px] font-[500] text-neutral-500 px-0.5">
-        {isUser ? 'You' : 'Agent'}
-      </span>
-      {isUser ? (
-        <div className="max-w-[80%] px-3 py-2 rounded-[14px] rounded-tr-[4px] bg-neutral-900/10 text-neutral-900 text-[13px] leading-[1.45]">
-          {content}
-        </div>
-      ) : (
-        <p className={cn('max-w-[90%] text-neutral-800 text-[13px] leading-[1.5]', streaming && 'opacity-70')}>
-          {content}
-          {streaming && <span className="inline-block w-[2px] h-[13px] bg-neutral-500 ml-0.5 align-middle animate-pulse" />}
-        </p>
-      )}
-    </div>
-  )
-}
-
-/* Web preview — 3 states:
-   1. idle: floating poster card bottom-right with Play button
-   2. playing: same floating card + Anam live + expand icon top-right of card
-   3. expanded: fullscreen avatar top (16:9) + chat thread bottom */
-function WebPreview({ avatar, onPickAvatar, agentSystemPrompt, agentInitialMessage }: {
-  avatar: Avatar | null
-  onPickAvatar: () => void
-  agentSystemPrompt: string
-  agentInitialMessage: string
+/* ── Bottom test bar — ElevenLabs-style: test the agent from ANY tab ──
+   Slim resting bar; expands into a live-call strip while a browser call
+   runs. The phone number + Call▾ moved down here from the header. The
+   live transcript still feeds the Observability tracer. */
+function BottomTestBar({ agentName, callState, talkState, agentAmplitude, error, muted, phoneNumber, onStart, onEnd, onToggleMute }: {
+  agentName: string
+  callState: 'idle' | 'connecting' | 'active' | 'error'
+  talkState: 'speaking' | 'listening'
+  agentAmplitude: number
+  error: string | null
+  muted: boolean
+  /** The agent's assigned inbound number, if provisioned — shown beside the hint. */
+  phoneNumber?: string | null
+  onStart: () => void
+  onEnd: () => void
+  onToggleMute: () => void
 }) {
-  type WidgetState = 'idle' | 'playing' | 'expanded'
-  const [widgetState, setWidgetState] = useState<WidgetState>('idle')
-  const [armed, setArmed] = useState(false)
-  const [messages, setMessages] = useState<{ id: number; role: 'agent' | 'user'; content: string; streaming?: boolean }[]>([])
-  const [speaking, setSpeaking] = useState<'agent' | 'user' | 'none'>('none')
-  const msgIdRef = useRef(0)
-  const streamingMsgIdRef = useRef<number | null>(null)
-  const chatRef = useRef<HTMLDivElement>(null)
-
-  const greeting = agentInitialMessage
-
-  const handleMessage = useCallback((role: 'agent' | 'user' | 'agent:stream' | 'agent:done', content: string) => {
-    if (role === 'agent:stream') {
-      // Create or update the in-progress agent bubble
-      setMessages(prev => {
-        const streamId = streamingMsgIdRef.current
-        if (streamId !== null) {
-          return prev.map(m => m.id === streamId ? { ...m, content, streaming: true } : m)
-        }
-        const newId = ++msgIdRef.current
-        streamingMsgIdRef.current = newId
-        return [...prev, { id: newId, role: 'agent', content, streaming: true }]
-      })
-    } else if (role === 'agent:done') {
-      // Finalize the streaming bubble
-      setMessages(prev => {
-        const streamId = streamingMsgIdRef.current
-        streamingMsgIdRef.current = null
-        if (streamId !== null) {
-          return prev.map(m => m.id === streamId ? { ...m, content, streaming: false } : m)
-        }
-        return [...prev, { id: ++msgIdRef.current, role: 'agent', content, streaming: false }]
-      })
-    } else {
-      streamingMsgIdRef.current = null
-      setMessages(prev => [...prev, { id: ++msgIdRef.current, role: 'user', content }])
-    }
-  }, [])
-
-  useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
-  }, [messages])
-
-  const handlePlay = useCallback(() => {
-    setArmed(true)
-    setWidgetState('playing')
-  }, [])
-
-  const handleEnd = useCallback(() => {
-    setArmed(false)
-    setWidgetState('idle')
-    setMessages([])
-    setSpeaking('none')
-    streamingMsgIdRef.current = null
-  }, [])
-
-  if (!avatar) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-5 text-center relative z-10">
-        <div className="flex flex-col gap-1 max-w-[240px]">
-          <p className="text-[13.5px] font-[500] text-neutral-900 leading-5">No avatar yet</p>
-          <p className="text-[12.5px] text-neutral-500 leading-[1.5]">
-            Pick an avatar in Configuration to preview the widget.
-          </p>
-        </div>
-        <button
-          onClick={onPickAvatar}
-          className="mt-1 h-[30px] px-3.5 rounded-[7.2px] bg-brand text-white text-[13px] font-[500] hover:bg-brand-light cursor-pointer transition-colors"
-        >
-          Select an avatar
-        </button>
-      </div>
-    )
-  }
-
-  const isIdle = widgetState === 'idle'
-  const isExpanded = widgetState === 'expanded'
-  const isPlaying = widgetState === 'playing'
-
-  return (
-    <div className={cn('flex-1 relative z-10 overflow-hidden', isExpanded && 'flex flex-col')}>
-
-      {/* Avatar container — same DOM node for all states, only style changes */}
-      <div
-        className={cn('shrink-0', isExpanded ? 'relative' : 'absolute')}
-        style={isExpanded
-          ? { margin: 16, borderRadius: 16, overflow: 'hidden', aspectRatio: '16/9' }
-          : { bottom: 16, right: 16, width: 120, aspectRatio: '3/4', borderRadius: 16, overflow: 'hidden', boxShadow: '0px 4px 8px rgba(0,0,0,0.08),0px 14px 14px rgba(0,0,0,0.07)' }
-        }
-      >
-        {/* Poster always behind Anam (visible when idle or while Anam loads) */}
-        {avatar.imageUrl && (
-          <img src={avatar.imageUrl} alt={avatar.name} className="absolute inset-0 w-full h-full object-cover" />
-        )}
-
-        {/* Single AnamPreview — always in DOM, externalArmed controls connection.
-            manualStart=true so it won't self-start; we arm it via externalArmed. */}
-        <AnamPreview
-          key={avatar.id}
-          avatarId={avatar.anamPersonaId}
-          greeting={greeting}
-          systemPrompt={agentSystemPrompt}
-          micEnabled
-          manualStart
-          externalArmed={armed}
-          showCoverArt={false}
-          showHud={false}
-          transparentBg
-          onMessage={handleMessage}
-          onSpeakingChange={setSpeaking}
-          className="!aspect-auto absolute inset-0 w-full h-full rounded-none"
-        />
-
-        {/* Idle overlay: gradient + liquid-glass Play pill at bottom */}
-        {isIdle && (
-          <div className="absolute inset-0 flex items-end justify-center pb-3"
-            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.35) 0%, transparent 55%)' }}
-          >
-            <button
-              onClick={handlePlay}
-              className="inline-flex items-center gap-1.5 h-8 pl-3 pr-4 rounded-full bg-white/30 hover:bg-white/45 backdrop-blur-md border border-white/30 text-white text-[12px] font-[600] shadow-sm cursor-pointer transition-colors"
-            >
-              <Play size={11} strokeWidth={0} fill="white" className="ml-0.5" />
-              Play
-            </button>
-          </div>
-        )}
-
-        {/* Playing controls */}
-        {isPlaying && (
-          <>
-            <button
-              onClick={() => setWidgetState('expanded')}
-              className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white cursor-pointer transition-colors"
-            >
-              <Maximize2 size={11} strokeWidth={1.5} />
-            </button>
-            <button
-              onClick={handleEnd}
-              className="absolute bottom-2 left-0 right-0 flex justify-center cursor-pointer"
-            >
-              <span className="px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm text-white/70 text-[10px] font-[500] hover:text-white transition-colors">
-                End
-              </span>
-            </button>
-          </>
-        )}
-
-        {/* Expanded controls */}
-        {isExpanded && (
-          <div className="absolute top-2 right-2 flex gap-1.5">
-            <button
-              onClick={() => setWidgetState('playing')}
-              className="w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white cursor-pointer transition-colors"
-            >
-              <Minimize2 size={13} strokeWidth={1.5} />
-            </button>
-            <button
-              onClick={handleEnd}
-              className="w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white cursor-pointer transition-colors"
-            >
-              <X size={13} strokeWidth={1.5} />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Chat thread — below avatar in expanded state */}
-      {isExpanded && (
-        <div
-          ref={chatRef}
-          className="flex-1 overflow-y-auto py-3 flex flex-col gap-3 min-h-0"
-        >
-          {messages.length === 0 && speaking === 'none' && (
-            <p className="text-[11.5px] text-neutral-400 text-center px-4 mt-2">Conversation will appear here…</p>
-          )}
-          {messages.map(m => <ChatRow key={m.id} role={m.role} content={m.content} streaming={m.streaming} />)}
-          <SpeakingDots speaker={speaking} />
-        </div>
-      )}
-
-      {/* Label below floating card */}
-      {!isExpanded && (
-        <p
-          className="absolute text-[11px] text-neutral-500 leading-4 text-center"
-          style={{ bottom: 4, right: 16, width: 120 }}
-        >
-          {isIdle ? 'Click to talk' : 'Live'}
-        </p>
-      )}
-    </div>
-  )
-}
-
-function PhonePreview({ agentSystemPrompt, agentInitialMessage }: { agentSystemPrompt: string; agentInitialMessage: string }) {
-  const { callState, talkState, agentAmplitude, userAmplitude, error, startCall, endCall, toggleMute, muted } = useVoiceAgent({ systemPrompt: agentSystemPrompt, initialMessage: agentInitialMessage })
+  const t = useContent()
   const duration = useDuration(callState === 'active')
-
-  const isActive = callState === 'active'
-  const isConnecting = callState === 'connecting'
-
-  return (
-    <>
-      {isActive ? (
-        <div className="flex-1 flex items-center justify-center p-5 relative z-10">
-          {/* Figma: Section - Voice call — compact card, centered in panel */}
-          <div className="w-full rounded-[13px] border border-[rgba(223,220,215,0.8)] bg-[rgba(253,253,252,0.95)] backdrop-blur-[12px] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] overflow-hidden">
-
-            {/* Header row: mic icon + name/status + end call */}
-            <div className="flex items-center gap-3 px-3 pt-2 pb-1.5">
-              <button
-                onClick={toggleMute}
-                className={cn(
-                  'w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors cursor-pointer shadow-[0px_0px_0px_1px_rgba(10,10,10,0.08),0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]',
-                  muted ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700',
-                )}
-              >
-                <MicIcon muted={muted} size={18} />
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className="text-[13.7px] font-[600] text-[#39342f] tracking-[-0.375px] leading-5 truncate">{AGENT.name}</p>
-                <p className="text-[11.3px] text-[#636260] leading-4">Live call</p>
-              </div>
-              <button
-                onClick={endCall}
-                className="w-10 h-10 rounded-full bg-[#fb2c36] flex items-center justify-center shrink-0 hover:opacity-90 transition-opacity cursor-pointer shadow-[0px_0px_0px_1px_rgba(193,0,7,0.2),0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
-              >
-                <Phone size={16} strokeWidth={0} fill="white" className="rotate-[135deg]" />
-              </button>
-            </div>
-
-            {/* Agent waveform */}
-            <div className="px-3 pt-1 pb-0.5 flex items-center gap-2">
-              <span className="text-[10px] font-[600] text-[rgba(57,52,47,0.8)] tracking-[0.25px] w-7 shrink-0">Agent</span>
-              <Waveform amplitude={agentAmplitude} active={talkState === 'speaking'} variant="agent" />
-            </div>
-
-            {/* You waveform */}
-            <div className="px-3 pt-2 pb-1.5 flex items-center gap-2">
-              <span className="text-[10px] font-[600] text-[rgba(57,52,47,0.8)] tracking-[0.25px] w-7 shrink-0">You</span>
-              <Waveform amplitude={userAmplitude} active={!muted} variant="user" />
-            </div>
-
-            {/* Status bar */}
-            <div className="px-3 py-2 flex items-center justify-between border-t border-[rgba(223,220,215,0.6)]">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#00d492', boxShadow: talkState === 'speaking' ? '0 0 8px rgba(52,211,153,0.6)' : 'none', opacity: talkState === 'speaking' ? 1 : 0.35 }} />
-                  <span className="text-[11px] text-[#636260]">Agent speaking</span>
-                </div>
-                <span className="text-[11px] text-[rgba(99,98,96,0.7)]">•</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#00a6f4', boxShadow: !muted ? '0 0 6px rgba(14,165,233,0.5)' : 'none', opacity: muted ? 0.35 : 1 }} />
-                  <span className="text-[11px] text-[#636260]">{muted ? 'Mic muted' : 'Mic connected'}</span>
-                </div>
-              </div>
-              <span className="text-[11px] text-[#636260] tabular-nums">{duration}</span>
-            </div>
-
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center relative z-10">
-          <div className="flex flex-col items-center gap-4 px-8 text-center">
-            {error && (
-              <p className="text-[12px] text-danger leading-4 max-w-[220px]">{error}</p>
-            )}
-            <button
-              onClick={startCall}
-              disabled={isConnecting}
-              className="w-14 h-14 rounded-full bg-brand hover:bg-brand-light transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
-            >
-              {isConnecting
-                ? <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                : <Phone size={22} strokeWidth={0} fill="white" />
-              }
-            </button>
-            <div className="flex flex-col gap-1">
-              <p className="text-[13px] font-[500] text-neutral-900 leading-5">
-                {isConnecting ? 'Connecting…' : 'Test your agent'}
-              </p>
-              {!isConnecting && (
-                <p className="text-[12px] text-neutral-500 leading-4 max-w-[200px]">
-                  Start a call to preview {AGENT.name} over the phone.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  )
-}
-
-/* Preview panel — mirrors the deploy channels: a Web tab (floating widget →
-   click → live face) and a Phone tab (PSTN call test). Web is the default
-   when a face is attached, since that's where the face is meant to live. */
-function PreviewPanel({ onClose, avatar, onPickAvatar, agentSystemPrompt, agentInitialMessage }: {
-  onClose: () => void
-  avatar: Avatar | null
-  onPickAvatar: () => void
-  agentSystemPrompt: string
-  agentInitialMessage: string
-}) {
-  const [mode, setMode] = useState<PreviewMode>('Phone')
-
-  return (
-    <aside className="w-[400px] shrink-0 flex flex-col h-full border-l border-neutral-400 bg-neutral-100">
-      {/* Panel toolbar */}
-      <div className="h-[48px] flex items-center justify-between gap-2 px-3 border-b border-neutral-400">
-        <div className="flex items-center p-0.5 rounded-[7.2px] bg-neutral-300">
-          {(['Phone', 'Widget'] as const).map(m => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={cn(
-                'h-[26px] px-3 rounded-[5.76px] text-[12.5px] font-[500] leading-5 cursor-pointer transition-colors whitespace-nowrap',
-                mode === m ? 'bg-neutral-100 text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700',
-              )}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-        <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-[5.76px] hover:bg-neutral-200 cursor-pointer">
-          <X size={16} strokeWidth={1.5} className="text-neutral-600" />
-        </button>
-      </div>
-
-      <div className="flex-1 relative flex flex-col overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none z-0" style={{backgroundImage: 'linear-gradient(rgba(0,0,0,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.018) 1px, transparent 1px)', backgroundSize: '7px 7px', backgroundPosition: '3.5px 3.5px'}} />
-        {mode === 'Widget'
-          ? <WebPreview avatar={avatar} onPickAvatar={onPickAvatar} agentSystemPrompt={agentSystemPrompt} agentInitialMessage={agentInitialMessage} />
-          : <PhonePreview agentSystemPrompt={agentSystemPrompt} agentInitialMessage={agentInitialMessage} />
-        }
-      </div>
-    </aside>
-  )
-}
-
-/* Phone slot — shows Get Phone Number OR Call▼ depending on provisioning. */
-function CallButton({ hasNumber }: { hasNumber: boolean }) {
-  const [open, setOpen] = useState(false)
+  const [callMenuOpen, setCallMenuOpen] = useState(false)
   const [callTo, setCallTo] = useState('+1')
-  const ref = useRef<HTMLDivElement>(null)
+  const callMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (callMenuRef.current && !callMenuRef.current.contains(e.target as Node)) setCallMenuOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  if (!hasNumber) {
-    return (
-      <button className="h-[30px] px-3 rounded-control border border-border-default bg-bg-control text-[13px] font-[500] text-neutral-900 hover:bg-bg-control-hover cursor-pointer whitespace-nowrap transition-colors">
-        Get Phone Number
-      </button>
-    )
-  }
+  const isActive = callState === 'active'
+  const isConnecting = callState === 'connecting'
 
   return (
-    <div ref={ref} className="relative flex gap-px">
-      <button className="h-[30px] pl-2.5 pr-3 flex items-center gap-1.5 rounded-l-[7.2px] text-[13px] font-[500] bg-brand text-white hover:bg-brand-light transition-colors cursor-pointer">
-        <Phone size={14} strokeWidth={0} fill="currentColor" />
-        Call
-      </button>
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="h-[30px] w-[26px] flex items-center justify-center rounded-r-[7.2px] bg-brand text-white hover:bg-brand-light transition-colors cursor-pointer"
-      >
-        <ChevronDown size={13} strokeWidth={1.5} className={cn('transition-transform', open && 'rotate-180')} />
-      </button>
-
-      {open && (
-        <div className="absolute top-full right-0 mt-1.5 w-[250px] bg-white border border-neutral-400 rounded-[8px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] p-3 z-50">
-          <p className="text-[12.5px] font-[600] text-neutral-900 mb-2">Send Call to Phone Number</p>
-          <div className="flex items-center gap-2">
-            <input
-              value={callTo}
-              onChange={e => setCallTo(e.target.value)}
-              className="flex-1 h-8 px-3 rounded-[6px] border border-neutral-400 bg-white text-[13px] text-neutral-900 outline-none focus:border-neutral-600"
-            />
-            <button className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-brand text-white hover:bg-brand-light transition-colors cursor-pointer shrink-0">
-              <Phone size={14} strokeWidth={0} fill="currentColor" />
-            </button>
+    <div className="shrink-0 h-[60px] border-t border-neutral-400 bg-neutral-100">
+      {/* Mirrors the tab content's container (padding INSIDE max-w-1200) so
+          the controls left-align with the page title, not the panel edge */}
+      <div className="max-w-[1200px] w-full mx-auto h-full px-4 md:px-9 flex items-center gap-3">
+      {isActive ? (
+        /* Live-call strip — compact, grouped, fixed-width wave */
+        <>
+          <button
+            onClick={onToggleMute}
+            className={cn(
+              'w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors cursor-pointer shadow-[0px_0px_0px_1px_rgba(10,10,10,0.08)]',
+              muted ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700',
+            )}
+          >
+            <MicIcon muted={muted} size={16} />
+          </button>
+          <div className="flex flex-col min-w-0 shrink-0 max-w-[200px]">
+            <span className="text-[12.5px] font-[600] text-neutral-900 leading-4 truncate">{agentName}</span>
+            <span className="text-[11px] text-neutral-500 leading-4 tabular-nums">{t('preview.phone.live-call')} · {duration}</span>
           </div>
-        </div>
+          <div className="flex-1 hidden sm:block" />
+          <div className="w-[200px] shrink-0 hidden sm:block">
+            <Waveform amplitude={agentAmplitude} active={talkState === 'speaking'} variant="agent" />
+          </div>
+          <span className="hidden md:flex items-center gap-1.5 text-[11px] text-neutral-500 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#00d492', opacity: talkState === 'speaking' ? 1 : 0.35 }} />
+            {t('preview.phone.agent-speaking')}
+          </span>
+          <div className="flex-1 sm:flex-none md:flex-1" />
+          <button
+            onClick={onEnd}
+            className="w-9 h-9 rounded-full bg-[#fb2c36] flex items-center justify-center shrink-0 hover:opacity-90 transition-opacity cursor-pointer"
+          >
+            <Phone size={15} strokeWidth={0} fill="white" className="rotate-[135deg]" />
+          </button>
+        </>
+      ) : (
+        /* Idle — ONE control: test in the browser, or ▾ send the same call to
+           a real phone. Same act, two transports. */
+        <>
+          <div ref={callMenuRef} className="relative shrink-0">
+            <div className="flex gap-px">
+              <button
+                onClick={onStart}
+                disabled={isConnecting}
+                className="h-8 pl-3 pr-3 inline-flex items-center gap-2 rounded-l-full bg-brand text-white text-[12.5px] font-[500] hover:bg-brand-light transition-colors cursor-pointer disabled:opacity-60"
+              >
+                {isConnecting ? <Spinner tone="inverse" size="xs" /> : <Phone size={13} strokeWidth={0} fill="white" />}
+                {isConnecting ? t('builder.hero.connecting') : t('preview.bar.test-cta')}
+              </button>
+              <button
+                onClick={() => setCallMenuOpen(v => !v)}
+                aria-label={t('agent.header.send-call')}
+                className="h-8 w-7 rounded-r-full bg-brand text-white flex items-center justify-center hover:bg-brand-light transition-colors cursor-pointer"
+              >
+                <ChevronDown size={13} strokeWidth={1.5} className={cn('transition-transform', callMenuOpen && 'rotate-180')} />
+              </button>
+            </div>
+
+            {callMenuOpen && (
+              <div className="absolute bottom-full left-0 mb-1.5 w-[260px] bg-white border border-neutral-400 rounded-[8px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] p-3 z-50">
+                <p className="text-[12.5px] font-[600] text-neutral-900 mb-1">{t('agent.header.send-call')}</p>
+                {phoneNumber && (
+                  <p className="text-[11px] text-neutral-500 mb-2 flex items-center gap-1">
+                    <Hash size={11} strokeWidth={1.5} className="shrink-0" />
+                    {phoneNumber}
+                  </p>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    value={callTo}
+                    onChange={e => setCallTo(e.target.value)}
+                    className="flex-1 h-8 px-3 rounded-[6px] border border-neutral-400 bg-white text-[13px] text-neutral-900 outline-none focus:border-neutral-600 min-w-0"
+                  />
+                  <button className="w-8 h-8 flex items-center justify-center rounded-[6px] bg-brand text-white hover:bg-brand-light transition-colors cursor-pointer shrink-0">
+                    <Phone size={14} strokeWidth={0} fill="currentColor" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          {phoneNumber && (
+            <span className="hidden lg:inline-flex h-8 px-3 items-center gap-1.5 rounded-full border border-neutral-400 bg-white text-[12.5px] font-[500] text-neutral-600 whitespace-nowrap shrink-0">
+              <Hash size={13} strokeWidth={1.5} className="text-neutral-500 shrink-0" />
+              {phoneNumber}
+            </span>
+          )}
+          <span className="text-[12px] text-neutral-500 truncate min-w-0 hidden sm:block">
+            {error ? <span className="text-danger">{error}</span> : t('preview.phone.test-sub', { name: agentName })}
+          </span>
+        </>
       )}
+      </div>
     </div>
+  )
+}
+
+/* ── Build dock — the conversational builder, docked right ──────────
+   Chat is the standing companion pane (Cursor-style); testing moved to
+   the bottom bar, so the dock is honestly named and single-purpose. */
+function BuildDock({ onClose, onBuilderPatch, fixRequest, onFixConsumed, currentDraft, builderGreeting, testCallActive, onStartTestCall, onRunSim, verifySignals }: {
+  onClose: () => void
+  onBuilderPatch?: (patch: DraftPatch) => void
+  fixRequest?: string | null
+  onFixConsumed?: () => void
+  currentDraft?: AgentDraft | null
+  builderGreeting?: string
+  /** Preview lives INSIDE the build loop too: the panel offers a test
+      call, and the builder mic pauses while one runs. */
+  testCallActive?: boolean
+  onStartTestCall?: () => void
+  onRunSim?: () => void
+  verifySignals?: VerifySignals
+}) {
+  const t = useContent()
+  return (
+    <aside className="w-full md:w-[400px] shrink-0 flex flex-col h-full border-l border-neutral-400 bg-neutral-100">
+      <div className="h-[48px] shrink-0 flex items-center justify-between gap-2 px-4 border-b border-neutral-400">
+        <h2 className="text-[13.6px] font-[600] text-neutral-900">{t('preview.tab.build')}</h2>
+        <div className="flex items-center gap-1.5">
+          {onStartTestCall && (
+            <button
+              onClick={onStartTestCall}
+              disabled={testCallActive}
+              className="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-[6px] border border-border-default bg-bg-control text-[12px] font-[500] text-neutral-700 hover:bg-bg-control-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-default"
+            >
+              <Phone size={11} strokeWidth={1.7} />
+              {t('preview.bar.test-cta')}
+            </button>
+          )}
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-[5.76px] hover:bg-neutral-200 cursor-pointer">
+            <X size={16} strokeWidth={1.5} className="text-neutral-600" />
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 relative flex flex-col overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none z-0" style={{backgroundImage: 'linear-gradient(rgba(0,0,0,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.018) 1px, transparent 1px)', backgroundSize: '7px 7px', backgroundPosition: '3.5px 3.5px'}} />
+        <div className="flex-1 flex flex-col min-h-0 relative z-10">
+          <BuilderPanel
+            onPatch={onBuilderPatch ?? (() => {})}
+            active
+            fixRequest={fixRequest}
+            onFixConsumed={onFixConsumed}
+            currentDraft={currentDraft}
+            greeting={builderGreeting}
+            testCallActive={testCallActive}
+            onStartTestCall={onStartTestCall}
+            onRunSim={onRunSim}
+            verifySignals={verifySignals}
+          />
+        </div>
+      </div>
+    </aside>
   )
 }
 
@@ -804,6 +560,7 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
   onPublish: () => void
   publishing: boolean
 }) {
+  const t = useContent()
   const [format, setFormat] = useState(EMBED_FORMATS[0])
 
   return (
@@ -814,16 +571,14 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
           <Globe size={18} strokeWidth={1.7} />
         </div>
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <h4 className="text-[14.5px] font-[600] text-neutral-900 leading-5">Web / Application</h4>
-          {avatar && (
-            <span className="inline-flex items-center h-[18px] px-[8px] rounded-full border border-neutral-400 bg-neutral-200 text-[10.5px] font-[500] text-neutral-600 leading-4">Avatar</span>
-          )}
+          <h4 className="text-[14.5px] font-[600] text-neutral-900 leading-5">{t('deploy.web-app.title')}</h4>
+          {avatar && <Badge tone="neutral" size="sm">{t('deploy.avatar-badge')}</Badge>}
         </div>
       </div>
 
       {avatar ? (
         /* Body — live preview + embed snippet (gated until published) */
-        <div className="px-5 py-5 flex gap-5">
+        <div className="px-5 py-5 flex flex-col md:flex-row gap-5">
           <div className="w-[150px] shrink-0">
             <AnamPreview
               greeting={undefined}
@@ -835,7 +590,7 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
               className="!aspect-[3/4] rounded-[12px]"
             />
             <p className="mt-2 text-[11px] text-neutral-500 leading-4 text-center">
-              {published ? 'Live preview' : 'Preview'}
+              {published ? t('deploy.preview.live') : t('deploy.preview.static')}
             </p>
           </div>
 
@@ -862,7 +617,7 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
                 <span className="flex items-center gap-2 min-w-0">
                   <AlertCircle size={15} strokeWidth={1.7} className="text-neutral-600 shrink-0" />
                   <span className="text-[12px] text-neutral-700 leading-4">
-                    Publish to activate this embed on the web.
+                    {t('deploy.publish-banner')}
                   </span>
                 </span>
                 <button
@@ -873,8 +628,8 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
                     publishing ? 'bg-brand text-white cursor-wait' : 'bg-brand text-white hover:bg-brand-light cursor-pointer',
                   )}
                 >
-                  {publishing && <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
-                  {publishing ? 'Publishing…' : 'Publish'}
+                  {publishing && <Spinner tone="inverse" size="xs" />}
+                  {publishing ? t('agent.header.publishing') : t('agent.header.publish')}
                 </button>
               </div>
             )}
@@ -884,9 +639,7 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
               <CodeBlock code={format.snippet(AGENT.id)} lang={format.lang} />
             </div>
             <p className="mt-2 flex items-center gap-1.5 text-[11.5px] text-neutral-500 leading-4">
-              {format.partner && (
-                <span className="inline-flex items-center h-[16px] px-[6px] rounded-full border border-neutral-400 bg-neutral-200 text-[10px] font-[500] text-neutral-600">Integration</span>
-              )}
+              {format.partner && <Badge tone="neutral" size="sm">{t('deploy.integration-badge')}</Badge>}
               {format.key === 'websocket'
                 ? <>Connects with an access token minted server-side.</>
                 : <>See the {format.docs} for the full flow.</>}
@@ -897,16 +650,16 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
         /* Empty — no avatar attached yet */
         <div className="px-5 py-10 flex flex-col items-center text-center gap-3">
           <div className="flex flex-col gap-1 max-w-[300px]">
-            <p className="text-[13.5px] font-[500] text-neutral-900 leading-5">No avatar yet</p>
+            <p className="text-[13.5px] font-[500] text-neutral-900 leading-5">{t('preview.widget.no-avatar-title')}</p>
             <p className="text-[12.5px] text-neutral-500 leading-[1.5]">
-              Pick an avatar in Configuration to generate the embed snippet.
+              {t('deploy.no-avatar-hint')}
             </p>
           </div>
           <button
             onClick={onPickAvatar}
             className="mt-1 h-[30px] px-3.5 rounded-[7.2px] bg-brand text-white text-[13px] font-[500] hover:bg-brand-light cursor-pointer transition-colors"
           >
-            Select an avatar
+            {t('preview.widget.select-avatar')}
           </button>
         </div>
       )}
@@ -914,19 +667,316 @@ function WebEmbedSection({ avatar, published, onPickAvatar, onPublish, publishin
   )
 }
 
-export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
+/* One simulated test-caller run — transcript expands, breaks highlighted. */
+function SimRunCard({ run, open, onToggle, onReplay }: {
+  run: { persona: SimPersona; status: 'running' | 'done' | 'error'; result?: SimResult; error?: string }
+  open: boolean
+  onToggle: () => void
+  onReplay: (path: string[]) => void
+}) {
+  const t = useContent()
+  const { persona, status, result } = run
+  const breaksByTurn = new Map<number, string[]>()
+  result?.breaks.forEach(b => {
+    breaksByTurn.set(b.atTurn, [...(breaksByTurn.get(b.atTurn) ?? []), b.note])
+  })
+
+  return (
+    <div className="border border-neutral-400 rounded-[10px] bg-bg-control overflow-hidden">
+      <button
+        onClick={onToggle}
+        disabled={status !== 'done'}
+        className={cn('w-full flex items-center gap-2.5 px-4 py-3 text-left', status === 'done' && 'cursor-pointer hover:bg-bg-control-hover transition-colors')}
+      >
+        <ChevronRight size={14} strokeWidth={1.5} className={cn('text-neutral-500 shrink-0 transition-transform', open && 'rotate-90', status !== 'done' && 'opacity-30')} />
+        <Badge tone={persona.faith === 'good' ? 'brand' : 'neutral'} size="sm">
+          {persona.faith === 'good' ? t('sim.faith.good') : t('sim.faith.bad')}
+        </Badge>
+        <span className="text-[13px] font-[600] text-neutral-900 leading-5 shrink-0">{t(`sim.persona.${persona.id}`)}</span>
+        <span className="flex-1 min-w-0 text-[12px] text-neutral-500 leading-4 truncate">
+          {status === 'done' ? result?.summary : status === 'error' ? run.error : persona.brief}
+        </span>
+        {status === 'running' && <Spinner size="xs" />}
+        {status === 'error' && <Badge tone="neutral" size="sm" className="text-danger">{t('sim.outcome.failed')}</Badge>}
+        {status === 'done' && (
+          result!.breaks.length === 0
+            ? <Badge size="sm">{t('sim.outcome.handled')}</Badge>
+            : <Badge tone="neutral" size="sm" className="text-danger border-danger/30">{t(result!.breaks.length === 1 ? 'sim.outcome.breaks.one' : 'sim.outcome.breaks.other', { n: result!.breaks.length })}</Badge>
+        )}
+      </button>
+
+      {open && result && (
+        <div className="border-t border-neutral-300 px-4 py-3 flex flex-col gap-2 bg-white">
+          {result.transcript.map((turn, i) => {
+            const turnBreaks = breaksByTurn.get(i) ?? []
+            return (
+              <div key={i} className={cn('flex flex-col gap-1 rounded-[6px]', turnBreaks.length > 0 && 'bg-danger/5 border-l-2 border-danger/40 pl-2 py-1')}>
+                <p className="text-[12px] leading-[1.5] text-neutral-800">
+                  <span className={cn('font-[600] mr-1.5', turn.speaker === 'agent' ? 'text-brand' : 'text-neutral-500')}>
+                    {turn.speaker === 'agent' ? t('sim.speaker.agent') : t('sim.speaker.caller')}
+                  </span>
+                  {turn.text}
+                </p>
+                {turnBreaks.map((note, j) => (
+                  <p key={j} className="text-[11.5px] text-danger leading-4 flex items-start gap-1.5">
+                    <AlertCircle size={12} strokeWidth={1.7} className="shrink-0 mt-0.5" />
+                    {note}
+                  </p>
+                ))}
+              </div>
+            )
+          })}
+          {result.path.length > 0 && (
+            <div className="pt-1">
+              <button
+                onClick={() => onReplay(result.path)}
+                className="h-[26px] px-2.5 rounded-[6px] border border-border-default bg-bg-control text-[12px] font-[500] text-neutral-700 hover:bg-bg-control-hover cursor-pointer transition-colors"
+              >
+                {t('sim.replay')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar, builderMode = false, onNameChange, onCountsChange }: {
   onBack?: () => void
   selectedAvatar?: Avatar | null
   onSelectAvatar?: (avatar: Avatar | null) => void
+  /** New-agent flow: empty config + a Build tab in the preview panel whose
+      conversation writes this page's form live. */
+  builderMode?: boolean
+  /** Reports the live agent name up to the agent-scoped sidebar. */
+  onNameChange?: (name: string) => void
+  /** Reports per-section counts (knowledge docs, flow steps) to the sidebar. */
+  onCountsChange?: (counts: Record<string, number>) => void
 }) {
-  const [activeTab, setActiveTab] = useState<Tab>('Configuration')
-  const [previewOpen, setPreviewOpen] = useState(true)
-  const [agentSystemPrompt, setAgentSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
-  const [agentInitialMessage, setAgentInitialMessage] = useState(DEFAULT_INITIAL_MESSAGE)
+  const navigate = useNavigate()
+  const t = useContent()
+  const { id: routeAgentId, tab: tabSlug } = useParams<{ id?: string; tab?: string }>()
+  const activeTab: Tab = (tabSlug && SLUG_TO_TAB[tabSlug]) || 'Configuration'
+  const basePath = builderMode ? '/agents/new/voice' : `/agents/${routeAgentId ?? 'demo'}`
+  const goTab = useCallback((tab: Tab) => {
+    navigate(`${basePath}/${TAB_TO_SLUG[tab]}`)
+  }, [navigate, basePath])
+
+  /* Chat-style entry: a first message typed on the Voice Agents page rides
+     in via route state and kicks the builder off. */
+
+  /* Agents built earlier reopen with their stored config — read once per
+     mount (the route is keyed by :id, so each agent remounts cleanly). */
+  const [stored] = useState(() => (!builderMode && routeAgentId ? getAgent(routeAgentId) : undefined))
+
+  const [agentName, setAgentName] = useState(stored?.name ?? (builderMode ? 'untitled-agent' : AGENT.name))
+  const [agentVoice, setAgentVoice] = useState<Voice>(
+    () => VOICES.find(v => v.id === stored?.voiceId) ?? VOICES[0])
+  const [kbDocs, setKbDocs] = useState<KnowledgeDoc[]>(stored?.knowledge ?? [])
+  const [flow, setFlow] = useState<AgentFlow | null>(stored ? stored.flow : (builderMode ? null : DEMO_FLOW))
+  /* Docked open on desktop; on mobile the panel is a fullscreen overlay, so it
+     starts closed — except in builder mode, where the conversation IS the entry. */
+  const [previewOpen, setPreviewOpen] = useState(() =>
+    builderMode || window.matchMedia('(min-width: 768px)').matches)
+
+  /* ── Run-time flow tracing ──────────────────────────────────────
+     Each agent turn in a Phone preview call is classified onto the
+     flow graph (active node + visited trail); deviations from the
+     design land in the Eval list, where the builder can fix them. */
+  const [trace, setTrace] = useState<{ active: string | null; visited: string[] }>({ active: null, visited: [] })
+  const [deviations, setDeviations] = useState<{ id: number; note: string }[]>([])
+  const [fixRequest, setFixRequest] = useState<string | null>(null)
+  const flowForTraceRef = useRef<AgentFlow | null>(flow)
+  const traceBusyRef = useRef(false)
+  const tracedCountRef = useRef(0)
+  const deviationIdRef = useRef(0)
+  useEffect(() => { flowForTraceRef.current = flow }, [flow])
+
+  /* ── Simulation — text test-callers before anyone dials ─────────── */
+  type SimRun = { persona: SimPersona; status: 'running' | 'done' | 'error'; result?: SimResult; error?: string }
+  const [simRuns, setSimRuns] = useState<SimRun[]>([])
+  const [openSimId, setOpenSimId] = useState<string | null>(null)
+  const simReplayRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const simRunning = simRuns.some(r => r.status === 'running')
+
+  /* What the console knows about verification — the builder's playbook
+     stage derives from this, so the brain coaches from facts, not guesses. */
+  const verifySignals: VerifySignals = {
+    simRun: simRuns.length > 0 && simRuns.every(r => r.status !== 'running'),
+    simRunning: simRuns.some(r => r.status === 'running'),
+    breaks: simRuns.reduce((a, r) => a + (r.result?.breaks.length ?? 0), 0),
+    deviations: deviations.length,
+    notes: deviations.map(d => d.note),
+  }
+
+  /* Run test callers from the Build conversation: jump to Observability so
+     the run is visible, then fire it. */
+  function runSimulationsFromBuilder() {
+    if (activeTab !== 'Flow') goTab('Flow')
+    runSimulations()
+  }
+
+  function runSimulations() {
+    if (simRunning || !agentSystemPrompt) return
+    setSimRuns(SIM_PERSONAS.map(p => ({ persona: p, status: 'running' as const })))
+    setOpenSimId(null)
+    const config = {
+      name: agentName,
+      systemPrompt: agentSystemPrompt,
+      initialMessage: agentInitialMessage,
+      knowledge: kbDocs,
+      flow,
+    }
+    SIM_PERSONAS.forEach(persona => {
+      void simulateCall(config, persona)
+        .then(result => {
+          setSimRuns(prev => prev.map(r => r.persona.id === persona.id ? { ...r, status: 'done' as const, result } : r))
+          if (result.breaks.length > 0) {
+            const adds = result.breaks.map(b => ({
+              id: ++deviationIdRef.current,
+              note: `[${persona.name} · simulated] ${b.note}`,
+            }))
+            setDeviations(prev => {
+              const fresh = adds.filter(a => !prev.some(d => d.note === a.note))
+              return fresh.length > 0 ? [...prev, ...fresh] : prev
+            })
+          }
+        })
+        .catch((err: unknown) => {
+          console.error('Simulation run failed:', err)
+          setSimRuns(prev => prev.map(r => r.persona.id === persona.id
+            ? { ...r, status: 'error' as const, error: err instanceof Error ? err.message : 'Simulation failed' }
+            : r))
+        })
+    })
+  }
+
+  /* Step the canvas trace along a simulated call's path. */
+  function replayPath(path: string[]) {
+    if (path.length === 0) return
+    if (simReplayRef.current) clearInterval(simReplayRef.current)
+    let step = 0
+    setTrace({ active: path[0], visited: [] })
+    const intervalId = setInterval(() => {
+      step += 1
+      if (step >= path.length) {
+        clearInterval(intervalId)
+        return
+      }
+      setTrace({ active: path[step], visited: path.slice(0, step) })
+    }, 700)
+    simReplayRef.current = intervalId
+  }
+  useEffect(() => () => { if (simReplayRef.current) clearInterval(simReplayRef.current) }, [])
+
+  const handlePhoneTranscript = useCallback((msgs: TraceTurn[]) => {
+    if (msgs.length === 0) {
+      tracedCountRef.current = 0
+      // Bail out when already empty — this runs on every parent render via
+      // the PhonePreview effect, and an always-new object would loop.
+      setTrace(prev => (prev.active === null && prev.visited.length === 0) ? prev : { active: null, visited: [] })
+      return
+    }
+    const currentFlow = flowForTraceRef.current
+    const last = msgs[msgs.length - 1]
+    if (!currentFlow || last.role !== 'agent') return
+    if (msgs.length <= tracedCountRef.current || traceBusyRef.current) return
+    traceBusyRef.current = true
+    tracedCountRef.current = msgs.length
+    void traceCall(currentFlow, msgs.slice(-6)).then(result => {
+      traceBusyRef.current = false
+      if (result.nodeId) {
+        setTrace(prev => ({
+          active: result.nodeId,
+          visited: prev.active && prev.active !== result.nodeId && !prev.visited.includes(prev.active)
+            ? [...prev.visited, prev.active]
+            : prev.visited,
+        }))
+      }
+      if (result.deviation) {
+        const add = { id: ++deviationIdRef.current, note: result.deviation }
+        setDeviations(prev => prev.some(d => d.note === add.note) ? prev : [...prev, add])
+      }
+    })
+  }, [])
+
+  /* Keep the agent-scoped sidebar in sync (name + live section counts). */
+  useEffect(() => {
+    if (builderMode) onNameChange?.(agentName)
+  }, [builderMode, agentName, onNameChange])
+  useEffect(() => {
+    onCountsChange?.({ 'knowledge-base': kbDocs.length, flow: flow?.nodes.length ?? 0 })
+  }, [kbDocs.length, flow, onCountsChange])
+  useEffect(() => () => { onCountsChange?.({}) }, [onCountsChange])
+  const [agentSystemPrompt, setAgentSystemPrompt] = useState(stored?.systemPrompt ?? (builderMode ? '' : DEFAULT_SYSTEM_PROMPT))
+  const [agentInitialMessage, setAgentInitialMessage] = useState(stored?.initialMessage ?? (builderMode ? '' : DEFAULT_INITIAL_MESSAGE))
+
+  /* Persist built agents (and edits to them) so they appear in the sidebar
+     and the agents list like conversations in a chat app. The demo agent
+     (open-dialogue) is never persisted. */
+  const prevPersistIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const eligible = builderMode ? agentName !== 'untitled-agent' : !!stored
+    if (!eligible) return
+    if (prevPersistIdRef.current && prevPersistIdRef.current !== agentName) {
+      removeAgent(prevPersistIdRef.current)
+    }
+    prevPersistIdRef.current = agentName
+    upsertAgent({
+      id: agentName,
+      name: agentName,
+      systemPrompt: agentSystemPrompt,
+      initialMessage: agentInitialMessage,
+      voiceId: agentVoice.id,
+      knowledge: kbDocs,
+      flow,
+    })
+  }, [builderMode, stored, agentName, agentSystemPrompt, agentInitialMessage, agentVoice, kbDocs, flow])
+
+  /* The page's live config as a builder draft — editing an existing agent
+     starts the Build session from here instead of a blank slate. */
+  const liveDraft: AgentDraft = {
+    name: agentName,
+    useCase: null,
+    language: agentVoice.language ?? null,
+    voiceId: agentVoice.id,
+    systemPrompt: agentSystemPrompt || null,
+    initialMessage: agentInitialMessage || null,
+    knowledge: kbDocs,
+    flow,
+  }
+
+
+  /* ── Test call — ONE engine, two entry points: the bottom bar and the
+     Build panel's in-conversation affordances. ── */
+  const {
+    callState: testCallState, talkState: testTalkState, agentAmplitude: testAgentAmplitude,
+    messages: testMessages, error: testCallError, startCall: startTestCall,
+    endCall: endTestCall, toggleMute: toggleTestMute, muted: testMuted,
+  } = useVoiceAgent({ systemPrompt: agentSystemPrompt, initialMessage: agentInitialMessage, voiceId: agentVoice.cartesiaId })
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- trace reset bails on identical prev; tracer itself is async
+  useEffect(() => { handlePhoneTranscript(testMessages) }, [testMessages, handlePhoneTranscript])
+
+  /* Each brain turn lands here: the conversation writes the real form.
+     The compiler skips this component, so the manual memo IS the memoization;
+     stable identities here prevent the PhonePreview-effect render loop. */
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const handleBuilderPatch = useCallback((patch: DraftPatch) => {
+    if (patch.name) setAgentName(patch.name)
+    if (patch.systemPrompt) setAgentSystemPrompt(patch.systemPrompt)
+    if (patch.initialMessage) setAgentInitialMessage(patch.initialMessage)
+    if (patch.voiceId) {
+      const picked = VOICES.find(v => v.id === patch.voiceId)
+      if (picked) setAgentVoice(picked)
+    }
+    if (patch.knowledge) {
+      const docs = patch.knowledge
+      setKbDocs(prev => upsertDocs(prev, docs))
+    }
+    if (patch.flow) setFlow(patch.flow)
+  }, [])
   const hasFace = !!selectedAvatar
-  /* This agent already has a live phone number, so the header shows the
-     number + Call▾ (not "Get Phone Number"). */
-  const hasPhoneNumber = true
 
   /* Which avatar is live in production. Starts null (no avatar published yet).
      hasDraft = avatar is selected but differs from what's live — gates Publish.
@@ -950,7 +1000,7 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
     setTimeout(() => {
       setPublishing(false)
       setPublishedAvatarId(selectedAvatar?.id ?? null)
-      if (hasFace) setActiveTab('Widget')
+      if (hasFace) goTab('Widget')
     }, 1400)
   }
 
@@ -958,18 +1008,18 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
     <div className="flex flex-col h-full bg-neutral-100">
 
       {/* Header bar */}
-      <div className="shrink-0 h-[44px] flex items-center bg-neutral-100 px-9">
+      <div className="shrink-0 h-[44px] flex items-center bg-neutral-100 px-4 md:px-9 border-b border-neutral-400">
         {/* Left: breadcrumb + id chip + branch */}
-        <div className="flex items-center gap-2.5 flex-wrap min-w-0 flex-1">
-          <nav className="flex items-center gap-1.5 text-[13.5px]">
-            <a onClick={onBack} className="text-neutral-600 hover:text-neutral-900 cursor-pointer leading-5">All Agents</a>
-            <ChevronRight size={14} strokeWidth={1.17} className="text-neutral-600 shrink-0" />
-            <span className="font-[600] text-neutral-900 leading-5">{AGENT.name}</span>
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <nav className="flex items-center gap-1.5 text-[13.5px] min-w-0">
+            <a onClick={onBack} className="hidden sm:block text-neutral-600 hover:text-neutral-900 cursor-pointer leading-5 whitespace-nowrap">All Agents</a>
+            <ChevronRight size={14} strokeWidth={1.17} className="hidden sm:block text-neutral-600 shrink-0" />
+            <span className="font-[600] text-neutral-900 leading-5 truncate">{agentName}</span>
           </nav>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-[7.2px] bg-neutral-300 text-[12.5px] text-neutral-600 leading-5 whitespace-nowrap">
+          <span className="hidden xl:inline-flex items-center px-2 py-0.5 rounded-[7.2px] bg-neutral-300 text-[12.5px] text-neutral-600 leading-5 whitespace-nowrap">
             {AGENT.id}
           </span>
-          <a className="flex items-center gap-1 text-neutral-500 cursor-pointer">
+          <a className="hidden md:flex items-center gap-1 text-neutral-500 cursor-pointer">
             <GitBranch size={14} strokeWidth={1.33} className="shrink-0" />
             <span className="text-[13px] leading-5">{AGENT.branch}</span>
           </a>
@@ -988,7 +1038,7 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
                 : 'border-neutral-400 bg-neutral-100 text-neutral-900 hover:bg-neutral-200',
             )}
           >
-            Preview
+            {t('preview.tab.build')}
           </button>
 
           {/* Publish — promotes the current config to production, then lands on
@@ -1005,52 +1055,21 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
                   : 'bg-neutral-300 text-neutral-500 cursor-not-allowed',
             )}
           >
-            {publishing && <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
-            {publishing ? 'Publishing…' : 'Publish'}
+            {publishing && <Spinner tone="inverse" />}
+            {publishing ? t('agent.header.publishing') : t('agent.header.publish')}
           </button>
 
-          {/* Live phone number — styled like the Preview / former "Get Phone
-              Number" control so it reads as one unit, not floating text. */}
-          {hasPhoneNumber && (
-            <span className="h-[30px] px-3 flex items-center gap-1.5 rounded-[7.2px] border border-neutral-400 bg-neutral-100 text-[13px] font-[500] text-neutral-600 whitespace-nowrap">
-              <Hash size={14} strokeWidth={1.5} className="text-neutral-500 shrink-0" />
-              {AGENT.phoneNumber}
-            </span>
-          )}
-          <CallButton hasNumber={hasPhoneNumber} />
         </div>
       </div>
 
-      {/* Tab navigation — full-width, LEFT-aligned. Single border-b, outside scroll area.
-          First tab has no left padding so its text aligns with the header's px-9 baseline. */}
-      <div className="shrink-0 h-[44px] flex items-center border-b border-neutral-400 bg-neutral-100">
-        <div className="pl-9 pr-9 flex items-center gap-1 h-full overflow-x-auto scrollbar-none">
-          {TABS.map((tab, i) => {
-            const isActive = activeTab === tab
-            return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  'relative h-full text-[13.6px] font-[500] text-neutral-900 whitespace-nowrap cursor-pointer transition-opacity shrink-0',
-                  isActive ? 'opacity-100' : 'opacity-50 hover:opacity-75',
-                  i === 0 ? 'pr-3' : 'px-3',
-                )}
-              >
-                {tab}
-                {isActive && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-t-[1px]" />}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Below the tabs: content (scrolls) | preview panel (docks right) */}
+      {/* Below the header: content (scrolls) | preview panel (docks right).
+          Sections are navigated from the agent-scoped sidebar — no tab bar. */}
       <div className="flex flex-1 min-h-0">
 
         {/* Content — own scroll area, centered max-width column (Figma 56:1780) */}
+        <div className="flex-1 min-w-0 flex flex-col">
         <div className="flex-1 min-w-0 overflow-auto">
-          <div className="px-9 pt-6 max-w-[1200px] w-full mx-auto flex flex-col pb-12">
+          <div className="px-4 md:px-9 pt-6 max-w-[1200px] w-full mx-auto flex flex-col pb-12">
             {activeTab === 'Configuration' ? (
               <AgentConfigurationTab
                 selectedAvatar={selectedAvatar ?? null}
@@ -1059,6 +1078,8 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
                 onSystemPromptChange={setAgentSystemPrompt}
                 initialMessage={agentInitialMessage}
                 onInitialMessageChange={setAgentInitialMessage}
+                voice={agentVoice}
+                onVoiceChange={setAgentVoice}
               />
             ) : activeTab === 'Deployment' ? (
               <>
@@ -1066,26 +1087,26 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
                     "Live on" field shows which channels the version is serving;
                     publishing to production happens from the header Publish button. */}
                 <div className="py-4">
-                  <h3 className="text-[18.6px] font-[600] text-neutral-900 leading-7">Production Version</h3>
+                  <h3 className="text-[18.6px] font-[600] text-neutral-900 leading-7">{t('deploy.production.title')}</h3>
                 </div>
-                <div className="rounded-[4.32px] px-6 py-8">
-                  <div className="grid grid-cols-4 gap-10">
-                    <Field label="Version">
+                <div className="rounded-[4.32px] px-2 md:px-6 py-8">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-10">
+                    <Field label={t('deploy.field.version')}>
                       <span className="font-mono text-[14px] text-neutral-900">{PRODUCTION.version}</span>
                     </Field>
-                    <Field label="Status">
+                    <Field label={t('deploy.field.status')}>
                       <span className="flex items-center gap-2">
                         <StatusDot />
                         <span className="text-[13.9px] text-neutral-900">{PRODUCTION.status}</span>
                       </span>
                     </Field>
-                    <Field label="Deployed">
+                    <Field label={t('deploy.field.deployed')}>
                       <span className="text-[13.1px] text-neutral-900">{PRODUCTION.deployed}</span>
                     </Field>
                     <Field
                       label={
                         <span className="flex items-center gap-1">
-                          Webhook
+                          {t('deploy.field.webhook')}
                           <ExternalLink size={12} strokeWidth={0} fill="currentColor" className="text-neutral-500" />
                         </span>
                       }
@@ -1098,7 +1119,7 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
                   </div>
                   {/* Live on — read-only channel status for this version */}
                   <div className="mt-8">
-                    <Field label="Live on">
+                    <Field label={t('deploy.field.live-on')}>
                       <span className="flex items-center gap-1.5 flex-wrap">
                         <ChannelChip icon={<Phone size={11} strokeWidth={0} fill="currentColor" />} label={`Phone · ${AGENT.phoneNumber}`} />
                         {avatarPublished && (
@@ -1111,9 +1132,9 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
 
                 {/* Version History */}
                 <div className="pt-4 flex items-center justify-between">
-                  <h3 className="text-[18.6px] font-[600] text-neutral-900 leading-7">Version History</h3>
+                  <h3 className="text-[18.6px] font-[600] text-neutral-900 leading-7">{t('deploy.history.title')}</h3>
                   <button className="h-[26px] px-2.5 rounded-[5.76px] border border-neutral-400 bg-neutral-100 text-[12.6px] font-[500] text-neutral-900 hover:bg-neutral-200 cursor-pointer">
-                    Deploy
+                    {t('deploy.history.cta')}
                   </button>
                 </div>
                 <div className="mt-4 border border-neutral-400 rounded-[7.2px] overflow-hidden pt-4">
@@ -1122,44 +1143,238 @@ export function AgentDetailPage({ onBack, selectedAvatar, onSelectAvatar }: {
                   ))}
                 </div>
               </>
+            ) : activeTab === 'Flow' ? (
+              <>
+                {/* Flow — an observability view of the Line agent, not a node
+                    runtime. Every node is a real Line primitive (introduction,
+                    system prompt task, loopback tool / knowledge_base,
+                    agent_as_handoff, transfer_call, end_call); branches live
+                    on conditioned edges, which is what Line tool/handoff
+                    descriptions actually are. */}
+                <div className="py-4 flex items-end justify-between gap-4">
+                  <div>
+                    <h3 className="text-[18.6px] font-[600] text-neutral-900 leading-7">{t('flow.title')}</h3>
+                    <p className="text-[13px] text-neutral-500 leading-5 mt-0.5">
+                      {t('flow.sub', { name: agentName })}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 pb-1">
+                    {trace.active && (
+                      <Badge>
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-light" style={{ animation: 'speakPulse 1s ease-in-out infinite' }} />
+                        {t('flow.tracing-badge')}
+                      </Badge>
+                    )}
+                    {flow && (
+                      <p className="text-[11.5px] text-neutral-500 leading-4 whitespace-nowrap text-right">
+                        {t('flow.stats', { steps: flow.nodes.length, paths: flow.edges.length })}
+                        <span className="hidden md:block text-[10.5px] text-neutral-400 mt-0.5">{t('flow.compiled-note')}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Jump anchors — the tab holds three sections */}
+                <div className="flex items-center gap-1.5 mb-3">
+                  {([['obs-flow', t('flow.section.flow')], ['obs-sim', t('sim.title')], ['obs-eval', t('eval.title')]] as const).map(([id, label]) => (
+                    <button
+                      key={id}
+                      onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                      className="h-6 px-2.5 rounded-full border border-border-default bg-bg-control text-[11.5px] font-[500] text-neutral-600 hover:bg-bg-control-hover cursor-pointer transition-colors"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {flow ? (
+                  <div id="obs-flow" className="h-[440px] md:h-[620px] border border-neutral-400 rounded-[14px] overflow-hidden bg-neutral-100">
+                    <FlowCanvas flow={flow} activeNodeId={trace.active} visitedIds={trace.visited} />
+                  </div>
+                ) : (
+                  <div className="h-[420px] border border-neutral-400 rounded-[14px] bg-neutral-100 flex items-center justify-center">
+                    <p className="text-[13px] text-neutral-500 max-w-[320px] text-center leading-5">
+                      {t('flow.empty')}
+                    </p>
+                  </div>
+                )}
+
+                {/* Simulation — good-faith and bad-faith callers run against
+                    the agent in text, before anyone dials it. Breaks land in
+                    the same Eval list as live-call deviations. */}
+                <div id="obs-sim" className="mt-5 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-[14.5px] font-[600] text-neutral-900 leading-5">{t('sim.title')}</h4>
+                      <span className="relative group flex items-center">
+                        <Info size={13} strokeWidth={1.7} className="text-neutral-500 hover:text-neutral-700 cursor-help" aria-label={t('sim.tooltip')} />
+                        <span className="hidden group-hover:block absolute left-0 bottom-full mb-1.5 w-[300px] p-3 rounded-[8px] border border-neutral-400 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.12)] text-[11.5px] font-[400] text-neutral-700 leading-[1.55] z-30 text-left">
+                          {t('sim.tooltip')}
+                        </span>
+                      </span>
+                      <Badge tone="neutral" size="sm">{t('sim.badge', { n: SIM_PERSONAS.length })}</Badge>
+                    </div>
+                    <button
+                      onClick={runSimulations}
+                      disabled={simRunning || !agentSystemPrompt}
+                      className={cn(
+                        'h-[28px] px-3 flex items-center gap-1.5 rounded-[7px] text-[12.5px] font-[500] transition-colors',
+                        simRunning || !agentSystemPrompt
+                          ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                          : 'bg-brand text-white hover:bg-brand-light cursor-pointer',
+                      )}
+                    >
+                      {simRunning && <Spinner tone="inverse" size="xs" />}
+                      {simRunning ? t('sim.running') : t('sim.run')}
+                    </button>
+                  </div>
+                  {simRuns.length === 0 ? (
+                    <p className="text-[12px] text-neutral-500 leading-[1.5]">
+                      {t('sim.intro')}
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {simRuns.map(run => (
+                        <SimRunCard
+                          key={run.persona.id}
+                          run={run}
+                          open={openSimId === run.persona.id}
+                          onToggle={() => setOpenSimId(prev => prev === run.persona.id ? null : run.persona.id)}
+                          onReplay={replayPath}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Eval — deviations the tracer caught during preview calls.
+                    Each one can be handed straight back to the builder. */}
+                {deviations.length > 0 && (
+                  <div id="obs-eval" className="mt-5 flex flex-col gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-[14.5px] font-[600] text-neutral-900 leading-5">{t('eval.title')}</h4>
+                      <Badge tone="neutral" size="sm">
+                        {t(deviations.length === 1 ? 'eval.badge.one' : 'eval.badge.other', { n: deviations.length })}
+                      </Badge>
+                    </div>
+                    {deviations.map(d => (
+                      <div key={d.id} className="border border-neutral-400 rounded-[10px] bg-bg-control px-4 py-3 flex items-start gap-3">
+                        <AlertCircle size={15} strokeWidth={1.7} className="text-neutral-600 shrink-0 mt-0.5" />
+                        <p className="flex-1 min-w-0 text-[12.5px] text-neutral-800 leading-[1.5]">{d.note}</p>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {(
+                            <button
+                              onClick={() => setFixRequest(
+                                `During a phone test of this agent, an evaluator flagged: "${d.note}". Adjust the system prompt (and the flow if needed) so the agent handles this correctly, and briefly tell me what you changed.`,
+                              )}
+                              className="h-[26px] px-2.5 rounded-[6px] bg-brand text-white text-[12px] font-[500] hover:bg-brand-light cursor-pointer transition-colors"
+                            >
+                              {t('eval.fix')}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setDeviations(prev => prev.filter(x => x.id !== d.id))}
+                            className="w-[26px] h-[26px] flex items-center justify-center rounded-[6px] hover:bg-neutral-200 text-neutral-500 cursor-pointer transition-colors"
+                          >
+                            <X size={13} strokeWidth={1.7} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : activeTab === 'Knowledge Base' ? (
+              <>
+                {/* Knowledge Base — facts the agent queries at call time via its
+                    knowledge_base tool. Seeded by the voice builder's extraction. */}
+                <div className="py-4">
+                  <h3 className="text-[18.6px] font-[600] text-neutral-900 leading-7">{t('kb.title')}</h3>
+                  <p className="text-[13px] text-neutral-500 leading-5 mt-0.5">
+                    {t('kb.sub')}
+                  </p>
+                </div>
+                {kbDocs.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {kbDocs.map(doc => (
+                      <div key={doc.title} className="border border-neutral-400 rounded-[10px] bg-bg-control px-5 py-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <FileText size={15} strokeWidth={1.7} className="text-neutral-600 shrink-0" />
+                          <h4 className="text-[13.6px] font-[600] text-neutral-900 leading-5 flex-1 min-w-0 truncate">{doc.title}</h4>
+                          <Badge tone="neutral" size="sm">{t('kb.from-conversation')}</Badge>
+                        </div>
+                        <pre className="text-[12.5px] text-neutral-700 whitespace-pre-wrap font-sans leading-[1.55]">{doc.content}</pre>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-16 flex items-center justify-center">
+                    <p className="text-[13px] text-neutral-500">{t('kb.empty')}</p>
+                  </div>
+                )}
+              </>
             ) : activeTab === 'Widget' ? (
               <>
                 {/* Widget — the agent's embeddable web surface (ElevenLabs/Anam
                     pattern). Snippet + live preview live on their own tab, not
                     buried in Deployment. */}
                 <div className="py-4">
-                  <h3 className="text-[18.6px] font-[600] text-neutral-900 leading-7">Widget</h3>
+                  <h3 className="text-[18.6px] font-[600] text-neutral-900 leading-7">{t('deploy.widget.title')}</h3>
                   <p className="text-[13px] text-neutral-500 leading-5 mt-0.5">
-                    Embed your agent in a website or app. The snippet stays in sync with your published version.
+                    {t('deploy.widget.sub')}
                   </p>
                 </div>
                 <WebEmbedSection
                   avatar={selectedAvatar ?? null}
                   published={avatarPublished}
-                  onPickAvatar={() => setActiveTab('Configuration')}
+                  onPickAvatar={() => goTab('Configuration')}
                   onPublish={handlePublish}
                   publishing={publishing}
                 />
               </>
             ) : (
               <div className="py-16 flex items-center justify-center">
-                <p className="text-[13px] text-neutral-500">{activeTab} — coming soon</p>
+                <p className="text-[13px] text-neutral-500">{t('agent.tab.coming-soon', { tab: t(`shell.nav.section.${TAB_TO_SLUG[activeTab]}`) })}</p>
               </div>
             )}
           </div>
+          </div>
+
+          {/* Test anywhere — the bar persists under every tab, scoped to the
+              content column so it never invades the Build dock */}
+          <BottomTestBar
+            agentName={agentName}
+            callState={testCallState}
+            talkState={testTalkState}
+            agentAmplitude={testAgentAmplitude}
+            error={testCallError}
+            muted={testMuted}
+            phoneNumber={!builderMode && !stored ? AGENT.phoneNumber : null}
+            onStart={() => void startTestCall()}
+            onEnd={endTestCall}
+            onToggleMute={toggleTestMute}
+          />
         </div>
 
-        {/* ── Right preview panel — always mounted, slides in/out via width transition ── */}
+        {/* ── Build dock — desktop/tablet: docks right with a width
+              transition; phones: fullscreen overlay below the top bar ── */}
         <div className={cn(
-          'shrink-0 flex flex-col h-full overflow-hidden transition-[width] duration-300 ease-in-out',
-          previewOpen ? 'w-[400px]' : 'w-0',
+          'flex flex-col overflow-hidden md:shrink-0 md:h-full md:transition-[width] md:duration-300 md:ease-in-out',
+          previewOpen
+            ? 'fixed inset-x-0 top-12 bottom-0 z-40 md:static md:inset-auto md:w-[400px]'
+            : 'hidden md:flex md:w-0',
         )}>
-          <PreviewPanel
+          <BuildDock
             onClose={() => setPreviewOpen(false)}
-            avatar={selectedAvatar ?? null}
-            onPickAvatar={() => setActiveTab('Configuration')}
-            agentSystemPrompt={agentSystemPrompt}
-            agentInitialMessage={agentInitialMessage}
+            testCallActive={testCallState === 'active' || testCallState === 'connecting'}
+            onStartTestCall={() => void startTestCall()}
+            onRunSim={runSimulationsFromBuilder}
+            verifySignals={verifySignals}
+            onBuilderPatch={handleBuilderPatch}
+            fixRequest={fixRequest}
+            onFixConsumed={() => setFixRequest(null)}
+            currentDraft={builderMode ? null : liveDraft}
+            builderGreeting={builderMode ? undefined : t('builder.greeting.edit', { name: agentName })}
           />
         </div>
       </div>
