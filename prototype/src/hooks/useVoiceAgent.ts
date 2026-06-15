@@ -18,6 +18,8 @@ export interface Message {
 export interface VoiceAgentOptions {
   systemPrompt?: string
   initialMessage?: string
+  /** Real Cartesia voice id — overrides the default preview voice (Skylar). */
+  voiceId?: string
 }
 
 export interface VoiceAgentState {
@@ -41,7 +43,7 @@ function pcmRms(float32: Float32Array): number {
 
 let _msgId = 0
 
-export function useVoiceAgent({ systemPrompt, initialMessage }: VoiceAgentOptions = {}): VoiceAgentState {
+export function useVoiceAgent({ systemPrompt, initialMessage, voiceId }: VoiceAgentOptions = {}): VoiceAgentState {
   const [callState, setCallState] = useState<CallState>('idle')
   const [talkState, setTalkState] = useState<TalkState>('listening')
   const [agentAmplitude, setAgentAmplitude] = useState(0)
@@ -152,7 +154,7 @@ export function useVoiceAgent({ systemPrompt, initialMessage }: VoiceAgentOption
             try {
               const gen = ttsWs.generate({
                 model_id: 'sonic-2',
-                voice: { mode: 'id', id: VOICE_ID },
+                voice: { mode: 'id', id: voiceId ?? VOICE_ID },
                 transcript: capturedContent,
                 output_format: { container: 'raw', encoding: 'pcm_s16le', sample_rate: 24000 },
               })
@@ -268,7 +270,7 @@ export function useVoiceAgent({ systemPrompt, initialMessage }: VoiceAgentOption
       setCallState('error')
       cleanup()
     }
-  }, [cleanup, endCall, clearAmpTimeouts, systemPrompt, initialMessage])
+  }, [cleanup, endCall, clearAmpTimeouts, systemPrompt, initialMessage, voiceId])
 
   const toggleMute = useCallback(() => setMuted(v => !v), [])
 

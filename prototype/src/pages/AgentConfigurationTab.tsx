@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Sparkles, Check, Upload, AlertCircle } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Toggle } from '../components/ui/Toggle'
+import { Badge } from '../components/ui/Badge'
+import { useContent } from '../content/store'
 import { AVATARS, type Avatar } from '../data/avatars'
 import { VoicePickerModal } from '../components/voice/VoicePickerModal'
 import { AvatarPickerModal } from '../components/avatar/AvatarPickerModal'
@@ -142,6 +144,7 @@ function AvatarSection({ systemPrompt, initialMessage, selectedAvatar, onSelectA
   onSelectAvatar: (avatar: Avatar | null) => void
 }) {
   const navigate = useNavigate()
+  const t = useContent()
   // Voice the user actually picked (may differ from the avatar's paired voice).
   const [selectedVoice, setSelectedVoice] = useState<string>(CURRENT_VOICE)
   const [pending, setPending] = useState<{ avatar: Avatar; voiceLabel: string } | null>(null)
@@ -169,8 +172,8 @@ function AvatarSection({ systemPrompt, initialMessage, selectedAvatar, onSelectA
   return (
     <div className="flex flex-col gap-[17px]">
       <div className="flex items-center gap-2">
-        <SectionHeading>Avatar</SectionHeading>
-        <span className="inline-flex items-center h-5 px-2 rounded-full bg-neutral-900 text-white text-[11px] font-[500] leading-none">New</span>
+        <SectionHeading>{t('agent.config.avatar')}</SectionHeading>
+        <Badge tone="inverse">{t('agent.config.avatar.badge-new')}</Badge>
       </div>
 
       {/* Field trigger — opens the picker modal */}
@@ -201,7 +204,7 @@ function AvatarSection({ systemPrompt, initialMessage, selectedAvatar, onSelectA
               ))}
             </span>
             <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-900 truncate">
-              Select an avatar
+              {t('agent.config.avatar.select')}
             </span>
           </>
         )}
@@ -210,13 +213,13 @@ function AvatarSection({ systemPrompt, initialMessage, selectedAvatar, onSelectA
 
       {selectedAvatar ? (
         <p className="text-[11.3px] text-neutral-600 leading-4">
-          Voice: {selectedVoice}
+          {t('agent.config.avatar.voice-note', { voice: selectedVoice })}
         </p>
       ) : (
         <p className="text-[11.3px] text-neutral-500 leading-4">
-          Avatars are paired with a voice. Selecting one may update your current voice.{' '}
+          {t('agent.config.avatar.pair-hint')}{' '}
           <button onClick={() => navigate('/avatars')} className="text-brand hover:underline cursor-pointer">
-            Browse all →
+            {t('agent.config.avatar.browse')}
           </button>
         </p>
       )}
@@ -245,27 +248,25 @@ function AvatarSection({ systemPrompt, initialMessage, selectedAvatar, onSelectA
 }
 
 /* ── Right column: current ── */
-function RightColumnCurrent({ languageDetection, setLanguageDetection, systemPrompt, initialMessage, selectedAvatar, onSelectAvatar }: {
+function RightColumnCurrent({ languageDetection, setLanguageDetection, systemPrompt, initialMessage, selectedAvatar, onSelectAvatar, voice, onVoiceChange }: {
   languageDetection: boolean
   setLanguageDetection: (v: boolean) => void
   systemPrompt: string
   initialMessage: string
   selectedAvatar: Avatar | null
   onSelectAvatar: (avatar: Avatar | null) => void
+  /* Controlled by the page so the voice builder can swap it live. */
+  voice: Voice
+  onVoiceChange: (v: Voice) => void
 }) {
-  // Default to Skylar (matches CURRENT_VOICE); the picker modal swaps it.
-  const [voice, setVoice] = useState<Voice>({
-    id: 'v1', name: 'Skylar', tag: 'Friendly Guide',
-    desc: 'Approachable American female ideal for customer care and support.',
-    flag: '🇺🇸', language: 'English', accent: 'American', gender: 'Feminine', verified: true,
-  })
+  const t = useContent()
   const [pickerOpen, setPickerOpen] = useState(false)
 
   return (
     <div className="flex flex-col gap-8 pt-2 min-w-0">
       <AvatarSection systemPrompt={systemPrompt} initialMessage={initialMessage} selectedAvatar={selectedAvatar} onSelectAvatar={onSelectAvatar} />
       <div className="flex flex-col gap-[17px]">
-        <SectionHeading>Voice &amp; Language</SectionHeading>
+        <SectionHeading>{t('agent.config.voice')}</SectionHeading>
         <button
           onClick={() => setPickerOpen(true)}
           className="h-[30px] w-full flex items-center gap-2 pl-5 pr-2.5 rounded-control border border-border-default bg-bg-control hover:bg-bg-control-hover cursor-pointer"
@@ -274,7 +275,7 @@ function RightColumnCurrent({ languageDetection, setLanguageDetection, systemPro
           <span className="flex-1 min-w-0 text-left text-[13px] font-[500] text-neutral-900 truncate">{voice.name} - {voice.tag}</span>
           <ChevronDown size={16} strokeWidth={1.33} className="text-neutral-900 shrink-0" />
         </button>
-        <p className="text-[11.3px] text-neutral-600 leading-4">Language: {voice.language}</p>
+        <p className="text-[11.3px] text-neutral-600 leading-4">{t('agent.config.language-note', { language: voice.language })}</p>
       </div>
       <RightColumnASR languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} />
       <RightColumnBgSound />
@@ -282,7 +283,7 @@ function RightColumnCurrent({ languageDetection, setLanguageDetection, systemPro
       <VoicePickerModal
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        onSelect={setVoice}
+        onSelect={onVoiceChange}
       />
     </div>
   )
@@ -293,11 +294,12 @@ function RightColumnASR({ languageDetection, setLanguageDetection }: {
   languageDetection: boolean
   setLanguageDetection: (v: boolean) => void
 }) {
+  const t = useContent()
   return (
     <div className="flex flex-col gap-4">
-      <SectionHeading>Automatic Speech Recognition</SectionHeading>
+      <SectionHeading>{t('agent.config.asr')}</SectionHeading>
       <div className="flex flex-col gap-2">
-        <label className="text-[13.6px] font-[500] text-neutral-900 leading-[14px]">Model</label>
+        <label className="text-[13.6px] font-[500] text-neutral-900 leading-[14px]">{t('agent.config.asr.model')}</label>
         <button className="h-8 w-full flex items-center justify-between pl-[11px] pr-2.5 rounded-control border border-border-default bg-bg-control hover:bg-bg-control-hover cursor-pointer">
           <span className="text-[12.7px] text-neutral-900">Ink-2</span>
           <ChevronDown size={16} strokeWidth={1.33} className="text-neutral-600 shrink-0" />
@@ -307,11 +309,11 @@ function RightColumnASR({ languageDetection, setLanguageDetection }: {
         <Toggle
           checked={languageDetection}
           onChange={setLanguageDetection}
-          label="Language detection"
+          label={t('agent.config.asr.lang-detect')}
           badge="Beta"
         />
         <p className="text-[11.1px] text-neutral-600 leading-4">
-          Auto-detect the caller's language and respond in kind. Supports English, Spanish, French, German, Hindi, Russian, Portuguese, Japanese, Italian, and Dutch.
+          {t('agent.config.asr.lang-detect-hint')}
         </p>
       </div>
     </div>
@@ -319,29 +321,33 @@ function RightColumnASR({ languageDetection, setLanguageDetection }: {
 }
 
 function RightColumnBgSound() {
+  const t = useContent()
   return (
     <div className="flex flex-col gap-[17px]">
       <div className="flex flex-col gap-2">
-        <SectionHeading>Background Sound</SectionHeading>
-        <p className="text-[12.8px] text-neutral-500 leading-5">Add sound to play in the background of your agent's speech.</p>
+        <SectionHeading>{t('agent.config.bg-sound')}</SectionHeading>
+        <p className="text-[12.8px] text-neutral-500 leading-5">{t('agent.config.bg-sound-hint')}</p>
       </div>
       <button className="h-[30px] w-full flex items-center gap-3 pl-5 pr-2.5 rounded-control border border-border-default bg-bg-control hover:bg-bg-control-hover cursor-pointer">
-        <span className="text-[13.6px] font-[500] text-neutral-700 leading-5 shrink-0">Choose File</span>
-        <span className="flex-1 min-w-0 text-left text-[13.3px] font-[500] text-neutral-500 leading-5 truncate">No file chosen</span>
+        <span className="text-[13.6px] font-[500] text-neutral-700 leading-5 shrink-0">{t('agent.config.choose-file')}</span>
+        <span className="flex-1 min-w-0 text-left text-[13.3px] font-[500] text-neutral-500 leading-5 truncate">{t('agent.config.no-file')}</span>
         <Upload size={16} strokeWidth={1.33} className="text-neutral-900 shrink-0" />
       </button>
     </div>
   )
 }
 
-export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar, systemPrompt, onSystemPromptChange, initialMessage, onInitialMessageChange }: {
+export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar, systemPrompt, onSystemPromptChange, initialMessage, onInitialMessageChange, voice, onVoiceChange }: {
   selectedAvatar: Avatar | null
   onSelectAvatar: (avatar: Avatar | null) => void
   systemPrompt: string
   onSystemPromptChange: (v: string) => void
   initialMessage: string
   onInitialMessageChange: (v: string) => void
+  voice: Voice
+  onVoiceChange: (v: Voice) => void
 }) {
+  const t = useContent()
   const [skipIntro, setSkipIntro] = useState(false)
   const [languageDetection, setLanguageDetection] = useState(false)
 
@@ -350,11 +356,11 @@ export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar, systemPr
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-[19px] font-[600] text-neutral-900 leading-7">Configuration</h3>
+        <h3 className="text-[19px] font-[600] text-neutral-900 leading-7">{t('agent.config.title')}</h3>
       </div>
 
-      {/* Two-column grid (Figma 56:1398) */}
-      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-8 items-start">
+      {/* Two-column grid (Figma 56:1398) — stacks on phones */}
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-8 items-start">
 
         {/* ── Left column ── */}
         <div className="flex flex-col gap-8 min-w-0">
@@ -362,10 +368,10 @@ export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar, systemPr
           {/* System Prompt */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <SectionHeading info>System Prompt</SectionHeading>
+              <SectionHeading info>{t('agent.config.system-prompt')}</SectionHeading>
               <button className="h-[26px] px-2.5 flex items-center gap-1 rounded-[5.76px] border border-neutral-400 bg-neutral-100 text-[12.4px] font-[500] text-neutral-900 hover:bg-neutral-200 cursor-pointer">
                 <Sparkles size={16} strokeWidth={1.5} />
-                Generate
+                {t('agent.config.generate')}
               </button>
             </div>
             <textarea
@@ -378,7 +384,7 @@ export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar, systemPr
 
           {/* Initial Message */}
           <div className="flex flex-col gap-4">
-            <SectionHeading info>Initial Message</SectionHeading>
+            <SectionHeading info>{t('agent.config.initial-message')}</SectionHeading>
             <input
               value={initialMessage}
               onChange={e => onInitialMessageChange(e.target.value)}
@@ -396,14 +402,14 @@ export function AgentConfigurationTab({ selectedAvatar, onSelectAvatar, systemPr
               >
                 {skipIntro && <Check size={12} strokeWidth={3} className="text-white" />}
               </button>
-              <span className="text-[13.3px] text-neutral-600 leading-6">Skip agent introduction</span>
+              <span className="text-[13.3px] text-neutral-600 leading-6">{t('agent.config.skip-intro')}</span>
               <InfoButton />
             </div>
           </div>
         </div>
 
         {/* ── Right column ── */}
-        <RightColumnCurrent languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} systemPrompt={systemPrompt} initialMessage={initialMessage} selectedAvatar={selectedAvatar} onSelectAvatar={onSelectAvatar} />
+        <RightColumnCurrent languageDetection={languageDetection} setLanguageDetection={setLanguageDetection} systemPrompt={systemPrompt} initialMessage={initialMessage} selectedAvatar={selectedAvatar} onSelectAvatar={onSelectAvatar} voice={voice} onVoiceChange={onVoiceChange} />
       </div>
     </div>
   )

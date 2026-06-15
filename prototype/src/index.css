@@ -63,6 +63,10 @@
   /* ── Primitive: Status ── */
   --color-danger:   #fa2b36;
   --color-danger-2: #a62842;
+  /* Info blue — the production console's "Beta" chip (the one sanctioned
+     non-brand hue; functional labeling, not an accent) */
+  --color-info-bg:   #dbeafe;
+  --color-info-text: #1d4ed8;
 
   /* ── Semantic: Text ── */
   --color-text-primary:   var(--color-neutral-900); /* body, headings */
@@ -120,6 +124,9 @@
   --shadow-sm:   0 1px 2px 0 rgba(0, 0, 0, 0.15);
   --shadow-md:   0 8px 10px -6px rgba(0, 0, 0, 0.10), 0 20px 25px -5px rgba(0, 0, 0, 0.10);
   --shadow-ring: 0 0 0 1px rgba(57, 52, 47, 0.10);
+  /* Brand focus/trace rings — rgba of --color-brand #004d22 */
+  --shadow-ring-brand:    0 0 0 3px rgba(0, 77, 34, 0.18); /* live/active emphasis */
+  --shadow-ring-brand-sm: 0 0 0 2px rgba(0, 77, 34, 0.12); /* selected state */
 }
 
 @layer base {

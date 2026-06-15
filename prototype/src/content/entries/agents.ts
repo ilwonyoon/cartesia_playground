@@ -1,0 +1,26 @@
+import type { ContentEntry } from './types'
+
+export const AGENTS_ENTRIES: ContentEntry[] = [
+  { key: 'agents.title', value: { en: 'Voice Agents', ko: '보이스 에이전트' }, context: 'Page H1, serif.', surface: 'agents', kind: 'title' },
+  { key: 'agents.promo.badge', value: { en: 'New', ko: '신규' }, surface: 'agents', kind: 'badge' },
+  { key: 'agents.promo.label', value: { en: 'Give your agent a face', ko: '에이전트에 얼굴을 입혀보세요' }, context: 'Discovery pill next to the page title.', surface: 'agents', kind: 'cta' },
+  { key: 'agents.create.cta', value: { en: 'New agent', ko: '새 에이전트' }, context: 'Primary split button, opens the creation chooser.', surface: 'agents', kind: 'cta' },
+  { key: 'agents.create.guided.label', value: { en: 'Guided builder', ko: '가이드 빌더' }, context: 'Split-menu item — opens the guided build experience (intake questions + chat) in the right dock.', surface: 'agents', kind: 'cta' },
+  { key: 'agents.create.guided.badge', value: { en: 'Beta' }, context: 'Production-pattern blue Beta chip — usually untranslated.', surface: 'agents', kind: 'badge' },
+  { key: 'agents.create.guided.hint', value: { en: "Pick what it's for, then refine in chat — the config writes itself.", ko: '용도를 고르고 대화로 다듬으면 구성이 알아서 작성됩니다.' }, surface: 'agents', kind: 'hint' },
+  { key: 'agents.create.blank.label', value: { en: 'Start from blank', ko: '빈 상태로 시작' }, surface: 'agents', kind: 'cta' },
+  { key: 'agents.create.blank.hint', value: { en: 'Configure the prompt and voice by hand.', ko: '프롬프트와 보이스를 직접 구성합니다.' }, surface: 'agents', kind: 'hint' },
+  { key: 'agents.search.placeholder', value: { en: 'Search by name or agent id…', ko: '이름 또는 에이전트 ID로 검색…' }, surface: 'agents', kind: 'placeholder' },
+  { key: 'agents.count', value: { en: '{shown}/{total} agents', ko: '{shown}/{total}개 에이전트' }, context: 'List count above the table. Placeholders required.', surface: 'agents', kind: 'status' },
+  { key: 'agents.filter.all', value: { en: 'All', ko: '전체' }, surface: 'agents', kind: 'label' },
+  { key: 'agents.filter.deployed', value: { en: 'Deployed', ko: '배포됨' }, surface: 'agents', kind: 'status' },
+  { key: 'agents.filter.deploying', value: { en: 'Deploying', ko: '배포 중' }, surface: 'agents', kind: 'status' },
+  { key: 'agents.filter.failed', value: { en: 'Failed', ko: '실패' }, surface: 'agents', kind: 'status' },
+  { key: 'agents.filter.not-deployed', value: { en: 'Not deployed', ko: '미배포' }, surface: 'agents', kind: 'status' },
+  { key: 'agents.empty.filtered', value: { en: 'No agents match this filter.', ko: '필터에 맞는 에이전트가 없습니다.' }, surface: 'agents', kind: 'empty' },
+  { key: 'agents.source.builder', value: { en: 'Builder', ko: '빌더' }, context: 'Source column for agents made with the voice builder.', surface: 'agents', kind: 'label' },
+  { key: 'agents.updated.just-now', value: { en: 'Updated just now', ko: '방금 업데이트됨' }, surface: 'agents', kind: 'status' },
+  { key: 'agents.updated.minutes', value: { en: 'Updated {n}m ago', ko: '{n}분 전 업데이트됨' }, surface: 'agents', kind: 'status' },
+  { key: 'agents.updated.hours', value: { en: 'Updated {n}h ago', ko: '{n}시간 전 업데이트됨' }, surface: 'agents', kind: 'status' },
+  { key: 'agents.updated.days', value: { en: 'Updated {n}d ago', ko: '{n}일 전 업데이트됨' }, surface: 'agents', kind: 'status' },
+]
